@@ -112,9 +112,25 @@ def callback(request):
 
         token_info = response.json()
         access_token = token_info.get('access_token')
+        refresh_token = token_info.get('refresh_token')
+        expires_in = token_info.get('expires_in', 3600)
 
-        # Store token in session
+        # Store tokens in session
         request.session['access_token'] = access_token
+        if refresh_token:
+            request.session['refresh_token'] = refresh_token
+
+        # Store token metadata
+        import time
+        request.session['token_acquired_at'] = int(time.time())
+        request.session['token_expires_in'] = expires_in
+        request.session['authenticated_at'] = int(time.time())
+
+        # Ensure session persists
+        request.session.set_expiry(30 * 24 * 60 * 60)  # 30 days
+
+        print(f"Stored tokens: access_token={bool(access_token)}, refresh_token={bool(refresh_token)}")
+        print(f"Token expires in: {expires_in} seconds")
 
         return redirect('dashboard')
 

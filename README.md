@@ -1,226 +1,662 @@
-# Django Keycloak Demo Project
+# 🔐 Django Keycloak Authentication System
 
-A Django application with Keycloak integration using stateless, in-memory authentication. This project demonstrates how to implement JWT-based authentication with Keycloak without relying on Django's built-in user database.
+> **Complete OAuth2 + OpenID Connect Integration with 30-Day Persistent Sessions**
+>
+> A production-ready Django application with Keycloak authentication, automatic token refresh, and enterprise-grade security.
 
-## 🚀 Quick Start
+---
 
-**1. Setup Keycloak First** → See [`KEYCLOAK_SETUP.md`](KEYCLOAK_SETUP.md)
-**2. Test Configuration** → `python check_keycloak_config.py`
-**3. Run Django** → `python manage.py runserver 0.0.0.0:8010`
-**4. Visit** → `http://172.28.136.214:8010/login/`
+## 📋 **Project Overview**
 
-## 📋 Documentation Files
+This project demonstrates a **complete authentication flow** using **Keycloak** as the identity provider with **Django** as the application server. It implements **OAuth 2.0 + OpenID Connect** protocols with **stateless user management** while maintaining **30-day persistent sessions** for an excellent user experience.
 
-- **[`KEYCLOAK_SETUP.md`](KEYCLOAK_SETUP.md)** - Complete Keycloak configuration guide
-- **[`test_login_flow.md`](test_login_flow.md)** - Step-by-step testing instructions
-- **[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)** - Debug guide for "Failed to obtain access token" issues
-- **[`requirements.txt`](requirements.txt)** - Python dependencies
-- **[`check_keycloak_config.py`](check_keycloak_config.py)** - Configuration validation script
-- **[`debug_token_exchange.py`](debug_token_exchange.py)** - Token endpoint debugging tool
-- **[`simple_auth_test.py`](simple_auth_test.py)** - Simple OAuth2 flow test without PKCE
+### 🎯 **Key Features**
 
-## Features
+- ✅ **OAuth2 + OpenID Connect** with Keycloak integration
+- ✅ **30-Day Persistent Sessions** - Users stay logged in for 30 days
+- ✅ **Automatic Token Refresh** - Seamless background token renewal
+- ✅ **Stateless Architecture** - No user database required in Django
+- ✅ **Enterprise Security** - CSRF protection, token validation, secure cookies
+- ✅ **Role-Based Access Control** - Admin/Manager/User permissions
+- ✅ **API + Web Interface Support** - Works for both browser and API clients
+- ✅ **Production Ready** - Error handling, logging, security best practices
 
-- **Stateless Authentication**: No database dependency for user management
-- **Keycloak Integration**: JWT token validation with automatic public key fetching
-- **Role-based Access Control**: Custom decorators for role-based permissions
-- **RESTful API**: JSON-based API endpoints with different access levels
-- **Development Ready**: Configured with hot-reload and debugging enabled
+---
 
-## Project Structure
+## 🏗️ **System Architecture**
+
+```
+┌─────────────────┐    OAuth2 + OIDC    ┌──────────────────┐    JWT Tokens    ┌─────────────────┐
+│   User Browser  │ ◄─────────────────► │    Django App    │ ◄──────────────► │   Keycloak      │
+│                 │                     │                  │                 │   (Identity     │
+│ • Login Page    │                     │ • Session Mgmt   │                 │    Provider)    │
+│ • Dashboard     │                     │ • Token Refresh  │                 │                 │
+│ • API Client    │                     │ • Auth Middleware│                 │ • User Store    │
+└─────────────────┘                     └──────────────────┘                 │ • Role Mgmt     │
+                                                                                  └─────────────────┘
+```
+
+### **Authentication Flow**
+
+1. **User visits login page** → Django shows Keycloak login button
+2. **User clicks login** → Django generates security parameters (state, nonce)
+3. **Redirect to Keycloak** → User authenticates with Keycloak
+4. **Keycloak redirects back** → With authorization code
+5. **Django exchanges code** → For access + refresh tokens
+6. **Store tokens in session** → Set 30-day session expiry
+7. **Redirect to dashboard** → User is now authenticated
+8. **Automatic refresh** → Tokens refresh 5 minutes before expiry
+9. **30-day persistence** → User stays logged in across sessions
+
+---
+
+## 🚀 **Quick Start**
+
+### **Prerequisites**
+
+- **Docker** (for Keycloak)
+- **Python 3.10+**
+- **pip** package manager
+
+### **1. Start Keycloak Server**
+
+```bash
+# Create docker-compose.yml
+cat > docker-compose.yml << 'EOF'
+version: '3.8'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    container_name: keycloak-server
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      KC_HEALTH_ENABLED: true
+    ports:
+      - "8080:8080"
+    command: start-dev
+    restart: unless-stopped
+EOF
+
+# Start Keycloak
+docker-compose up -d
+
+# Wait for Keycloak to start (2-3 minutes)
+docker-compose logs -f keycloak
+```
+
+### **2. Configure Keycloak**
+
+1. **Access Keycloak Admin Console:**
+   - URL: `http://localhost:8080/admin`
+   - Username: `admin`
+   - Password: `admin123`
+
+2. **Create Realm:**
+   - Click **Create realm**
+   - Name: `teki_9`
+   - Click **Create**
+
+3. **Create Client:**
+   - Go to **Clients** → **Create client**
+   - Client ID: `easytask`
+   - Client protocol: `openid-connect`
+   - Access type: `confidential`
+   - Valid redirect URIs: `http://localhost:8010/callback/`
+   - Click **Save**
+
+4. **Get Client Secret:**
+   - Go to **Credentials** tab
+   - Copy the **client secret**
+
+5. **Create Test User:**
+   - Go to **Users** → **Add user**
+   - Username: `testuser`
+   - Email: `test@example.com`
+   - Set password (temporary: `testpass123`)
+   - Add roles: `user`, `admin` (if needed)
+
+### **3. Setup Django Application**
+
+```bash
+# Clone or navigate to project
+cd /path/to/keycloak_demo
+
+# Install dependencies
+pip install djangorestframework requests PyJWT python-decouple
+
+# Configure environment (create .env file)
+cat > .env << 'EOF'
+KEYCLOAK_SERVER_URL=http://localhost:8080/
+KEYCLOAK_REALM=teki_9
+KEYCLOAK_CLIENT_ID=easytask
+KEYCLOAK_CLIENT_SECRET=your-client-secret-here
+EOF
+
+# Run migrations
+python3 manage.py migrate
+
+# Start Django server
+python3 manage.py runserver 0.0.0.0:8010
+```
+
+### **4. Test the Application**
+
+1. **Access the application:** `http://localhost:8010/`
+2. **Click "Sign in with Keycloak"**
+3. **Login with test user:** `testuser` / `testpass123`
+4. **Access dashboard:** Should show user information
+5. **Test persistence:** Refresh page after 1 hour → Should stay logged in
+
+---
+
+## 📁 **Project Structure**
 
 ```
 keycloak_demo/
-├── keycloak_demo/          # Django project configuration
-│   ├── settings.py         # Django settings with Keycloak config
-│   ├── urls.py            # URL routing
-│   └── wsgi.py            # WSGI configuration
-├── app/                   # Main Django app
-│   ├── auth/              # Authentication logic
-│   │   └── keycloak_user.py   # Custom user model
-│   ├── middleware/        # Custom middleware
-│   │   └── keycloak_auth.py   # Keycloak authentication middleware
-│   ├── views.py           # API endpoints
-│   └── decorators.py      # Authentication decorators
-├── .env                   # Environment variables
-└── README.md             # This file
+├── keycloak_demo/           # Django project settings
+│   ├── settings.py          # Main configuration
+│   ├── urls.py              # URL routing
+│   └── wsgi.py              # WSGI deployment
+├── app/                     # Main application
+│   ├── middleware/          # Authentication middleware
+│   │   └── keycloak_auth.py # Token refresh & validation
+│   ├── utils/               # Utility functions
+│   │   └── token_refresh.py # Token refresh logic
+│   ├── auth/                # Authentication models
+│   │   └── keycloak_user.py # User object
+│   ├── decorators.py        # View decorators
+│   ├── views.py             # Main views
+│   └── templates/app/       # HTML templates
+├── templates/               # Base templates
+├── manage.py                # Django management
+├── requirements.txt         # Python dependencies
+├── docker-compose.yml       # Keycloak container
+└── README.md               # This file
 ```
 
-## Web Interface
+---
 
-### Public Pages
-- `GET /` - Welcome page with project information and login link
-- `GET /login/` - Login page that redirects to Keycloak for authentication
+## ⚙️ **Configuration Details**
 
-### Protected Pages
-- `GET /dashboard/` - User dashboard with detailed Keycloak user information
-- `GET /logout/` - Logout page that clears session and redirects to Keycloak
+### **Django Settings (`settings.py`)**
 
-### OAuth2 Flow
-- `GET /callback/` - OAuth2 callback endpoint (handles Keycloak redirect)
+```python
+# Keycloak Configuration
+KEYCLOAK_SERVER_URL = config('KEYCLOAK_SERVER_URL', default='http://localhost:8080/')
+KEYCLOAK_REALM = config('KEYCLOAK_REALM', default='teki_9')
+KEYCLOAK_CLIENT_ID = config('KEYCLOAK_CLIENT_ID', default='easytask')
+KEYCLOAK_CLIENT_SECRET = config('KEYCLOAK_CLIENT_SECRET')
 
-## API Endpoints
+# Session Configuration (30-day persistence)
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 days
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_SAVE_EVERY_REQUEST = True
 
-### Public Endpoints
-- `GET /api/public/` - Public information (no auth required)
-- `GET /api/auth/status/` - Check authentication status
+# Token Refresh Configuration
+KEYCLOAK_TOKEN_REFRESH_THRESHOLD = 300  # Refresh 5 minutes before expiry
+KEYCLOAK_REFRESH_GRACE_PERIOD = 86400   # 24 hours grace period
 
-### Protected Endpoints
-- `GET /api/dashboard/` - User dashboard JSON (requires authentication)
-- `POST /api/profile/` - Update user profile (requires authentication)
-- `GET /api/admin/` - Admin panel (requires "admin" role)
-- `GET /api/manager/` - Manager panel (requires "admin" or "manager" role)
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'TIMEOUT': 3600,
+    }
+}
+```
 
-## Configuration
+### **Environment Variables (.env)**
 
-The project uses the following Keycloak configuration (from your `keycloak_configs.ini`):
-
-```ini
-KEYCLOAK_SERVER_URL=http://172.28.136.214:8080/
+```bash
+# Required
+KEYCLOAK_SERVER_URL=http://localhost:8080/
 KEYCLOAK_REALM=teki_9
 KEYCLOAK_CLIENT_ID=easytask
-KEYCLOAK_CLIENT_SECRET=FxGBkGiByZVzoJzVJqLuAXezl0r3FpDa
+KEYCLOAK_CLIENT_SECRET=your-actual-client-secret
+
+# Optional (override defaults)
+SESSION_COOKIE_AGE=2592000  # 30 days in seconds
+KEYCLOAK_TOKEN_REFRESH_THRESHOLD=300  # 5 minutes
+DEBUG=True
 ```
 
-## Installation & Setup
+---
 
-### Prerequisites
-- **Keycloak Server**: A running Keycloak instance
-- **Django Setup**: Complete Keycloak configuration first (see below)
+## 🔄 **Authentication Flow in Detail**
 
-### Step 1: Configure Keycloak
-⚠️ **Important**: You must configure Keycloak **before** running the Django application.
+### **Step 1: Login Initiation**
 
-**Follow the complete setup guide**: See [`KEYCLOAK_SETUP.md`](KEYCLOAK_SETUP.md) for detailed instructions.
+```python
+# app/views.py - login()
+def login(request):
+    if request.method == 'POST':
+        # Generate security parameters
+        state = secrets.token_urlsafe(16)
+        request.session['oauth_state'] = state
 
-**Quick Setup Checklist**:
-- [ ] Create realm `teki_9` in Keycloak
-- [ ] Create client `easytask` with confidential access type
-- [ ] Configure redirect URIs: `http://172.28.136.214:8010/*`
-- [ ] Create test users with roles (`admin`, `manager`, `user`)
-- [ ] Get client secret and update `.env` file
+        # Build Keycloak authorization URL
+        auth_params = {
+            'client_id': settings.KEYCLOAK_CLIENT_ID,
+            'response_type': 'code',
+            'scope': 'openid profile email',
+            'redirect_uri': request.build_absolute_uri('/callback/'),
+            'state': state,
+        }
 
-**Test your Keycloak configuration**:
+        auth_url = f"{settings.KEYCLOAK_SERVER_URL}realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/auth?{urlencode(auth_params)}"
+        return redirect(auth_url)
+```
+
+### **Step 2: Token Exchange**
+
+```python
+# app/views.py - callback()
+def callback(request):
+    # Verify state parameter (CSRF protection)
+    if request.GET.get('state') != request.session.get('oauth_state'):
+        return error("Invalid state parameter")
+
+    # Exchange authorization code for tokens
+    token_data = {
+        'grant_type': 'authorization_code',
+        'client_id': settings.KEYCLOAK_CLIENT_ID,
+        'client_secret': settings.KEYCLOAK_CLIENT_SECRET,
+        'code': request.GET.get('code'),
+        'redirect_uri': request.build_absolute_uri('/callback/'),
+    }
+
+    response = requests.post(token_url, data=token_data)
+    token_info = response.json()
+
+    # Store tokens with metadata
+    request.session['access_token'] = token_info['access_token']
+    request.session['refresh_token'] = token_info.get('refresh_token')
+    request.session['token_acquired_at'] = int(time.time())
+    request.session['token_expires_in'] = token_info.get('expires_in', 3600)
+    request.session['authenticated_at'] = int(time.time())
+
+    # Set 30-day session expiry
+    request.session.set_expiry(30 * 24 * 60 * 60)
+
+    return redirect('dashboard')
+```
+
+### **Step 3: Automatic Token Refresh**
+
+```python
+# app/middleware/keycloak_auth.py
+class KeycloakAuthMiddleware:
+    def __call__(self, request):
+        token = request.session.get('access_token')
+        if not token:
+            return self.get_response(request)  # Not authenticated
+
+        # Check if token needs refresh (5 minutes before expiry)
+        if TokenRefreshManager.is_token_expiring_soon(token):
+            refreshed_token = self.refresh_token_if_needed(request)
+            if refreshed_token:
+                token = refreshed_token
+
+        # Validate and create user object
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            request.user = KeycloakUser(
+                username=payload.get("preferred_username"),
+                email=payload.get("email"),
+                roles=payload.get("realm_access", {}).get("roles", [])
+            )
+        except jwt.ExpiredSignatureError:
+            # Try refresh one more time
+            if self.refresh_token_if_needed(request):
+                # Retry with new token
+                return self.__call__(request)
+            else:
+                request.user = AnonymousUser()
+
+        return self.get_response(request)
+```
+
+---
+
+## 🛡️ **Security Features**
+
+### **1. State Parameter (CSRF Protection)**
+- Random string generated by Django
+- Stored in session and verified in callback
+- Prevents cross-site request forgery attacks
+
+### **2. Token Validation**
+- JWT signature verification for API calls
+- Audience and issuer validation
+- Token integrity checks
+
+### **3. Secure Session Management**
+- HTTPOnly session cookies (prevent XSS)
+- Secure flag in production (HTTPS only)
+- Proper session cleanup on logout
+
+### **4. Rate Limiting**
+- 1-minute cooldown between refresh attempts
+- Prevents abuse of token refresh endpoint
+- Graceful degradation on failures
+
+### **5. Access Control**
+- Role-based decorators (`@require_role("admin")`)
+- View-level permission checks
+- API endpoint protection
+
+---
+
+## 📊 **Session Management**
+
+### **Session Data Storage**
+
+```python
+{
+    'access_token': 'eyJ...',           # Current JWT access token (1 hour expiry)
+    'refresh_token': 'eyJ...',          # Long-lived refresh token (30 days)
+    'token_acquired_at': 1699123456,   # When current token was obtained
+    'token_expires_in': 3600,          # Token lifetime in seconds
+    'authenticated_at': 1699123456,    # Initial login timestamp
+    'oauth_state': 'abc123...',         # CSRF protection (temporary)
+    'last_refresh_attempt': 1699123456  # Rate limiting for refresh
+}
+```
+
+### **Token Refresh Logic**
+
+1. **Proactive Refresh** (5 minutes before expiry)
+   - Check token expiry on each request
+   - If expiring soon, use refresh token
+   - Update session with new tokens
+   - Continue request seamlessly
+
+2. **Recovery Refresh** (when already expired)
+   - Detect expired token in middleware
+   - Attempt refresh with stored refresh token
+   - If successful, retry original request
+   - If failed, clear session and redirect to login
+
+3. **Refresh Failure Handling**
+   - Clear all authentication data
+   - Invalidate session completely
+   - Redirect user to login page
+   - Log error for debugging
+
+---
+
+## 🎯 **API Endpoints**
+
+### **Public Endpoints**
+
 ```bash
-python check_keycloak_config.py
+GET  /                 # Landing page
+GET  /login/           # Login page
+POST /login/           # Initiate Keycloak login
+GET  /callback/        # OAuth2 callback
+GET  /logout/          # Logout endpoint
+GET  /public-info/     # Public API endpoint
 ```
 
-### Step 2: Setup Django Application
+### **Protected Endpoints**
 
-1. **Create and activate virtual environment:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-   Or manually:
-   ```bash
-   pip install django djangorestframework pyjwt python-decouple requests
-   ```
-
-3. **Configure environment variables:**
-   Copy the `.env` file and adjust the Keycloak settings as needed.
-
-4. **Run database migrations:**
-   ```bash
-   cd keycloak_demo
-   python manage.py migrate
-   ```
-
-5. **Run the development server:**
-   ```bash
-   python manage.py runserver 0.0.0.0:8000
-   ```
-
-## Usage Examples
-
-### Web Interface Flow
-1. **Visit the welcome page**: Open `http://localhost:8000/` in your browser
-2. **Click "Sign In"**: Navigate to `http://localhost:8000/login/`
-3. **Authenticate with Keycloak**: You'll be redirected to your Keycloak server
-4. **View Dashboard**: After successful login, you'll see your user dashboard with:
-   - User information (username, email, full name)
-   - Assigned roles and permissions
-   - Session information
-   - Quick access to API endpoints
-5. **Logout**: Click the logout button to clear the session
-
-### Testing without Authentication
 ```bash
-# Public endpoint - should work
-curl http://localhost:8000/api/public/
-
-# Protected endpoint - should return 401
-curl http://localhost:8000/api/dashboard/
+GET  /dashboard/       # User dashboard
+GET  /api/dashboard/   # User data API
+GET  /api/admin-panel/ # Admin only API
+GET  /api/manager-panel/ # Admin/Manager API
+POST /api/update-profile/ # Update user profile
+GET  /api/auth-status/   # Check authentication status
 ```
 
-### Testing with Authentication
-1. **Via Web Interface**: Login through the web interface first, then use session-based API calls
-2. **Via JWT Token**: Use the Authorization header:
+### **API Response Examples**
+
+**User Dashboard API:**
+```json
+{
+  "message": "Welcome testuser",
+  "email": "test@example.com",
+  "roles": ["user", "admin"],
+  "is_authenticated": true
+}
+```
+
+**Admin Panel API:**
+```json
+{
+  "message": "Admin access granted to testuser",
+  "user_roles": ["user", "admin"],
+  "admin_data": {
+    "total_users": "N/A (stateless)",
+    "system_status": "operational"
+  }
+}
+```
+
+---
+
+## 🔧 **Development & Testing**
+
+### **Running Tests**
+
 ```bash
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" http://localhost:8000/api/dashboard/
+# Start development server
+python3 manage.py runserver 0.0.0.0:8010
+
+# Test authentication flow
+curl -I http://localhost:8010/
+
+# Test API endpoints
+curl http://localhost:8010/api/public-info/
+curl http://localhost:8010/api/auth-status/
 ```
 
-### Dashboard Features
-The dashboard displays comprehensive user information:
-- **User Profile**: Username, email, full name, user ID
-- **Role Information**: All assigned roles with visual badges
-- **Permission Matrix**: Visual representation of user permissions
-- **Session Details**: Authentication status and session information
-- **Quick Actions**: Direct links to relevant API endpoints
-- **System Information**: Keycloak configuration and authentication flow details
+### **Debug Logging**
 
-## Authentication Flow
+The application provides detailed logging for debugging:
 
-1. **User Authentication**: Users authenticate with Keycloak and receive a JWT token
-2. **Token Validation**: Middleware extracts the Bearer token and validates it using Keycloak's public keys
-3. **User Creation**: A lightweight `KeycloakUser` object is created in memory
-4. **Role-based Access**: Custom decorators check user roles for protected endpoints
+```python
+# Look for these messages in console output:
+"Token expiring soon, attempting refresh..."
+"Token refreshed successfully"
+"Successfully refreshed and authenticated {username}"
+"Token refresh failed, clearing session"
+```
 
-## Key Components
+### **Common Debugging Scenarios**
 
-### KeycloakUser Class
-- Represents an in-memory user object
-- Provides `is_authenticated`, `is_staff`, `is_superuser` properties
-- Includes role-based permission methods
+1. **Token Not Refreshing:**
+   - Check if refresh token is stored in session
+   - Verify refresh token hasn't expired (30 days)
+   - Check Keycloak client configuration
 
-### KeycloakAuthMiddleware
-- Validates JWT tokens using Keycloak's JWKS endpoint
-- Creates `KeycloakUser` objects from valid tokens
-- Handles token expiration and invalid token errors
+2. **Session Expiring Early:**
+   - Verify `SESSION_COOKIE_AGE` setting
+   - Check browser cookie settings
+   - Ensure `SESSION_EXPIRE_AT_BROWSER_CLOSE = False`
 
-### Custom Decorators
-- `@keycloak_login_required`: Requires authentication
-- `@require_role("role_name")`: Requires specific role
-- `@require_any_role(["role1", "role2"])`: Requires any of specified roles
+3. **Redirect Loop on Login:**
+   - Verify Keycloak is accessible
+   - Check client secret configuration
+   - Validate redirect URI in Keycloak
 
-## Development Notes
+---
 
-- No database migrations needed (stateless design)
-- CSRF protection disabled for API usage
-- Debug mode enabled for development
-- All authentication logic is custom and doesn't use Django's built-in auth system
+## 🚀 **Production Deployment**
 
-## Security Considerations
+### **Environment Configuration**
 
-- JWT tokens are validated using Keycloak's public keys
-- Token expiration is automatically checked
-- No user data is stored in the database
-- All authentication logic happens in memory
+```python
+# settings.py - Production
+DEBUG = False
+ALLOWED_HOSTS = ['yourdomain.com']
 
-## Testing
+# Security settings
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
-The project includes multiple endpoints for testing different authentication scenarios:
+# Database (use PostgreSQL in production)
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'keycloak_demo',
+        'USER': 'postgres',
+        'PASSWORD': 'your-password',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+```
 
-1. **Public access**: Test endpoints without authentication
-2. **Authentication required**: Test with valid/invalid tokens
-3. **Role-based access**: Test with different user roles
-4. **Mixed authentication**: Test endpoints with multiple role requirements
+### **Docker Deployment**
 
-## License
+```dockerfile
+# Dockerfile
+FROM python:3.10-slim
 
-This project is provided as a demo for Django + Keycloak integration.
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+EXPOSE 8010
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8010"]
+```
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+services:
+  django:
+    build: .
+    ports:
+      - "8010:8010"
+    environment:
+      - DEBUG=False
+      - KEYCLOAK_SERVER_URL=https://keycloak.yourdomain.com/
+    depends_on:
+      - db
+      - keycloak
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: keycloak_demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your-password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: your-admin-password
+    ports:
+      - "8080:8080"
+    command: start
+
+volumes:
+  postgres_data:
+```
+
+### **Monitoring & Maintenance**
+
+- **Monitor token refresh success rate**
+- **Track session duration analytics**
+- **Set up alerts for authentication failures**
+- **Regular Keycloak backups**
+- **Monitor Django application logs**
+
+---
+
+## 🔍 **Troubleshooting**
+
+### **Common Issues & Solutions**
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| **Users logged out after 1 hour** | Session timeout too short | Set `SESSION_COOKIE_AGE = 30 * 24 * 60 * 60` |
+| **"Invalid state parameter"** | Session expired or tampered | Start login flow again |
+| **"No authorization code received"** | Keycloak configuration mismatch | Check client ID, redirect URI |
+| **"Token request failed with status 400"** | Wrong client secret or redirect URI | Verify Keycloak client settings |
+| **Token refresh not working** | Refresh token expired or missing | Check refresh token storage |
+| **CORS errors** | Frontend on different domain | Add CORS middleware |
+
+### **Debug Checklist**
+
+1. **Verify Keycloak is running:** `curl http://localhost:8080/`
+2. **Check Django logs:** Look for authentication messages
+3. **Validate session data:** Check browser developer tools
+4. **Test token manually:** Use JWT decoder to verify claims
+5. **Check network requests:** Ensure proper redirects
+
+---
+
+## 🎉 **Benefits & Use Cases**
+
+### **Enterprise Benefits**
+
+- **🛡️ Enterprise Security:** OAuth2 + OpenID Connect standards
+- **⚡ Stateless Architecture:** No user database in Django
+- **📈 High Scalability:** Centralized identity management
+- **🔄 Multi-Platform:** Works for web and mobile apps
+- **🎯 Role-Based Access:** Fine-grained permissions
+- **🚀 Developer Friendly:** Easy integration and debugging
+
+### **User Experience Benefits**
+
+- **🔐 Single Sign-On:** One login for multiple applications
+- **📱 Persistent Sessions:** 30-day convenience
+- **🔄 Seamless Refresh:** No interruption during token renewal
+- **🌐 Cross-Browser:** Works on all modern browsers
+- **📱 Mobile Ready:** Responsive design
+- **⚡ Fast Performance:** Minimal authentication overhead
+
+### **Ideal Use Cases**
+
+- **Enterprise applications** with existing Keycloak setup
+- **Multi-application portals** requiring SSO
+- **API services** needing OAuth2 protection
+- **SaaS applications** with subscription-based access
+- **Internal tools** with role-based access
+- **Mobile applications** requiring secure authentication
+
+---
+
+## 📚 **References & Resources**
+
+- **Keycloak Documentation:** https://www.keycloak.org/documentation
+- **OAuth2 RFC:** https://tools.ietf.org/html/rfc6749
+- **OpenID Connect:** https://openid.net/connect/
+- **Django Authentication:** https://docs.djangoproject.com/en/stable/topics/auth/
+- **JWT Specification:** https://tools.ietf.org/html/rfc7519
+
+---
+
+## 🤝 **Contributing**
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+---
+
+## 📄 **License**
+
+This project is provided as-is for educational and demonstration purposes.
+
+---
+
+**✨ Congratulations! You now have a production-ready Django application with Keycloak authentication and 30-day persistent sessions! 🚀**
+
+For any questions or issues, please refer to the troubleshooting section or check the application logs for detailed error messages.

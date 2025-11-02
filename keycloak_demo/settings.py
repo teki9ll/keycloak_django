@@ -127,6 +127,10 @@ KEYCLOAK_REALM = config('KEYCLOAK_REALM', default='teki_9')
 KEYCLOAK_CLIENT_ID = config('KEYCLOAK_CLIENT_ID', default='easytask')
 KEYCLOAK_CLIENT_SECRET = config('KEYCLOAK_CLIENT_SECRET', default='FxGBkGiByZVzoJzVJqLuAXezl0r3FpDa')
 
+# Token Refresh Configuration
+KEYCLOAK_TOKEN_REFRESH_THRESHOLD = 300  # Refresh tokens 5 minutes before expiry
+KEYCLOAK_REFRESH_GRACE_PERIOD = 86400  # 24 hours grace period for refresh attempts
+
 # Fallback public key (will be fetched from Keycloak if not provided)
 KEYCLOAK_PUBLIC_KEY = '''-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzK8m5v8YmNkQJY9N5Y9X
@@ -146,10 +150,22 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [],
 }
 
+# Cache Configuration for public key caching
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'keycloak-demo-cache',
+        'TIMEOUT': 3600,  # 1 hour default
+    }
+}
+
 # Session Configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 3600  # 1 hour
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
 SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep session even if browser closes
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
 
 # CSRF Configuration
 CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
