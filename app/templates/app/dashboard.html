@@ -38,6 +38,11 @@
                         <button type="submit" class="btn btn-outline-danger btn-sm" title="Logout from all devices">
                             <i class="fas fa-shield-alt"></i> Full Logout
                         </button>
+                        {% if 'admin' in user.roles or 'keycloak-admin' in user.roles %}
+                        <a href="/keycloak-admin/" class="btn btn-warning ms-2">
+                            <i class="fas fa-cog"></i> Keycloak Admin
+                        </a>
+                        {% endif %}
                     </form>
                 </div>
             </div>

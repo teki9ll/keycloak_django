@@ -39,6 +39,9 @@ urlpatterns = [
     path('api/profile/', views.update_profile, name='update_profile'),
     path('api/auth/status/', views.auth_status, name='auth_status'),
 
+      # Easytask User Management
+    path('admin/', include('keycloak_admin.urls')),
+
     # Admin site (if needed)
     # path('admin/', admin.site.urls),
 ]

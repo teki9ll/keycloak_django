@@ -1,0 +1,324 @@
+{% extends 'keycloak_admin/base.html' %}
+
+{% block title %}Permissions - Keycloak Admin{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'keycloak_admin:role_create' %}" class="btn btn-success">
+        <i class="fas fa-plus-circle"></i> Create Role
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Permissions Overview -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="fas fa-shield-alt"></i> Permissions
+                    {% if permissions %}
+                        <span class="badge bg-warning ms-2">{{ permissions|length }}</span>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if permissions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Permission Name</th>
+                                    <th>Description</th>
+                                    <th>Created By</th>
+                                    <th>Assigned To</th>
+                                    <th>Assign to Roles</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for permission in permissions %}
+                                <tr>
+                                    <td>
+                                        {% if 'tasks' in permission.name %}
+                                            <span class="permission-badge badge-tasks">{{ permission.name }}</span>
+                                        {% elif 'integrations' in permission.name %}
+                                            <span class="permission-badge badge-integrations">{{ permission.name }}</span>
+                                        {% elif 'admin' in permission.name %}
+                                            <span class="permission-badge badge-admin">{{ permission.name }}</span>
+                                        {% else %}
+                                            <span class="permission-badge">{{ permission.name }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ permission.description|default:"No description provided" }}</td>
+                                    <td>
+                                        <small class="text-muted">System</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-xs">
+                                            <button class="btn btn-outline-info btn-sm"
+                                                    onclick="showAssignedRoles('{{ permission.name }}')"
+                                                    title="View Assigned Roles">
+                                                <i class="fas fa-users"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button class="btn btn-outline-warning btn-sm"
+                                                    onclick="assignToRoles('{{ permission.name }}')"
+                                                    title="Assign to Roles">
+                                                <i class="fas fa-user-plus"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                        <h5>No permissions found</h5>
+                        <p class="text-muted">Permissions will be available once they are configured in the system.</p>
+                        <div class="d-flex justify-content-center">
+                            <a href="{% url 'keycloak_admin:role_create' %}" class="btn btn-success">
+                                <i class="fas fa-plus-circle"></i> Create Role
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Permission Usage Guide -->
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="fas fa-info-circle"></i> Permission System Guide
+                </h6>
+            </div>
+            <div class="card-body">
+                <h6 class="text-primary">How Permissions Work</h6>
+                <p>Permissions in this system are predefined and grant specific capabilities to users. When assigned to roles, they control what users can access and do within the application.</p>
+
+                <h6 class="text-success mt-3">Available Permissions</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-success mb-3">Task Management</h6>
+                        <div class="mb-3">
+                            <span class="permission-badge badge-tasks">view_tasks</span>
+                            <p class="small text-muted mt-2">View tasks and task lists</p>
+                        </div>
+                        <div class="mb-3">
+                            <span class="permission-badge badge-tasks">manage_tasks</span>
+                            <p class="small text-muted mt-2">Create, update, delete tasks and manage assignments</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-info mb-3">System Integrations</h6>
+                        <div class="mb-3">
+                            <span class="permission-badge badge-integrations">view_integrations</span>
+                            <p class="small text-muted mt-2">View system integrations and their status</p>
+                        </div>
+                        <div class="mb-3">
+                            <span class="permission-badge badge-integrations">manage_integrations</span>
+                            <p class="small text-muted mt-2">Configure system integrations and external services</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-warning mb-3">Administrative Access</h6>
+                        <div class="mb-3">
+                            <span class="permission-badge badge-admin">view_admin</span>
+                            <p class="small text-muted mt-2">View administrative functions and system settings</p>
+                        </div>
+                        <div class="mb-3">
+                            <span class="permission-badge badge-admin">manage_admin</span>
+                            <p class="small text-muted mt-2">Access and modify administrative functions and system settings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-secondary">
+                    <i class="fas fa-lightbulb"></i> Quick Tips
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <small>
+                            <i class="fas fa-check text-success"></i>
+                            <strong>Permissions in JWT:</strong> All assigned permissions appear in the user's JWT token
+                        </small>
+                    </div>
+                    <div class="list-group-item">
+                        <small>
+                            <i class="fas fa-check text-success"></i>
+                            <strong>Granular Control:</strong> Assign specific permissions to different roles
+                        </small>
+                    </div>
+                    <div class="list-group-item">
+                        <small>
+                            <i class="fas fa-check text-success"></i>
+                            <strong>Composable:</strong> Roles can have multiple permissions
+                        </small>
+                    </div>
+                    <div class="list-group-item">
+                        <small>
+                            <i class="fas fa-info text-info"></i>
+                            <strong>Best Practice:</strong> Create descriptive permission names
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Assign to Roles Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Permission to Roles</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Assign permission <strong id="assignPermissionName"></strong> to:</p>
+                <div id="rolesList">
+                    <!-- Roles will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmAssignment()">
+                    <i class="fas fa-user-plus"></i> Assign
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.permission-badge {
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+.badge-tasks {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.badge-integrations {
+    background: linear-gradient(135deg, #17a2b8, #007bff);
+    color: white;
+}
+
+.badge-admin {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: #212529;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPermissionName = null;
+
+
+function assignToRoles(permissionName) {
+    currentPermissionName = permissionName;
+    document.getElementById('assignPermissionName').textContent = permissionName;
+
+    // Load roles (this would be implemented with an API call)
+    document.getElementById('rolesList').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading roles...</p>
+        </div>
+    `;
+
+    // Mock roles loading (replace with actual API call)
+    setTimeout(() => {
+        document.getElementById('rolesList').innerHTML = `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="admin" id="role-admin">
+                <label class="form-check-label" for="role-admin">
+                    <span class="role-badge">admin</span> - Has all permissions
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="manager" id="role-manager">
+                <label class="form-check-label" for="role-manager">
+                    <span class="role-badge">manager</span> - Has task and integration permissions
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="user" id="role-user">
+                <label class="form-check-label" for="role-user">
+                    <span class="role-badge">user</span> - Has basic permissions
+                </label>
+            </div>
+        `;
+    }, 1000);
+
+    new bootstrap.Modal(document.getElementById('assignModal')).show();
+}
+
+function confirmAssignment() {
+    const checkboxes = document.querySelectorAll('#rolesList input[type="checkbox"]:checked');
+    const selectedRoles = Array.from(checkboxes).map(cb => cb.value);
+
+    if (selectedRoles.length === 0) {
+        alert('Please select at least one role.');
+        return;
+    }
+
+    // This would need to be implemented in the backend
+    alert(`Assign permission '${currentPermissionName}' to roles: ${selectedRoles.join(', ')} - functionality needs to be implemented in the backend.`);
+    bootstrap.Modal.getInstance(document.getElementById('assignModal')).hide();
+}
+
+function showAssignedRoles(permissionName) {
+    // This would show which roles have this permission
+    alert(`Showing roles assigned to permission '${permissionName}' - functionality needs to be implemented in the backend.`);
+}
+
+// Add interactive behavior
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to permission badges
+    const badges = document.querySelectorAll('.permission-badge');
+    badges.forEach(badge => {
+        badge.style.transition = 'transform 0.2s ease';
+        badge.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.05)';
+        });
+        badge.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -5,8 +5,10 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth import logout as django_logout
 from django.contrib import messages
 from django.conf import settings
+from django.utils import timezone
+from django.core.cache import cache
 from urllib.parse import urlencode
-from app.decorators import keycloak_login_required, require_role, require_any_role, AnonymousUser
+from app.decorators import keycloak_login_required, require_role, require_any_role, AnonymousUser, track_user_activity
 import json
 import base64
 import secrets
@@ -355,6 +357,7 @@ def keycloak_logout(request):
         return redirect('login')
 
 
+@track_user_activity
 def dashboard_view(request):
     """Dashboard page with user details"""
     if not getattr(request.user, 'is_authenticated', False):

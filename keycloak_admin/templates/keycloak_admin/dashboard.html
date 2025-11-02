@@ -1,0 +1,412 @@
+{% extends 'keycloak_admin/base.html' %}
+
+{% block title %}Easytask User Management Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Statistics Cards -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Users
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_users }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Total Roles
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_roles }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user-tag fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Permissions
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_permissions }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-shield-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Online Users
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ online_users_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Users -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-users"></i> Recent Users
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if recent_users %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Session Status</th>
+                                    <th>Account Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar-small me-2">
+                                                {{ user.username|slice:":2"|upper }}
+                                            </div>
+                                            {{ user.username }}
+                                        </div>
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.is_online %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-circle"></i> Online
+                                            </span>
+                                            {% if user.ip_address %}
+                                                <small class="text-muted d-block">{{ user.ip_address }}</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Offline</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.enabled %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Disabled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'keycloak_admin:user_detail' user.id %}"
+                                               class="btn btn-outline-primary" title="View User">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if user.is_online %}
+                                            <button class="btn btn-outline-danger logout-user-btn"
+                                                    data-user-id="{{ user.id }}"
+                                                    data-username="{{ user.username }}"
+                                                    title="Logout User">
+                                                <i class="fas fa-sign-out-alt"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-primary">
+                            View All Users
+                        </a>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No users found.</p>
+                    <div class="text-center">
+                        <a href="{% url 'keycloak_admin:user_create' %}" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Create First User
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- System Overview -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-success">
+                    <i class="fas fa-chart-pie"></i> System Overview
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-4">
+                        <div class="border rounded p-3">
+                            <h4 class="text-primary">{{ stats.total_users }}</h4>
+                            <p class="small text-muted mb-0">Total Users</p>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-4">
+                        <div class="border rounded p-3">
+                            <h4 class="text-success">{{ online_users_count }}</h4>
+                            <p class="small text-muted mb-0">Online Now</p>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-4">
+                        <div class="border rounded p-3">
+                            <h4 class="text-warning">{{ stats.total_permissions }}</h4>
+                            <p class="small text-muted mb-0">Available Permissions</p>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-4">
+                        <div class="border rounded p-3">
+                            <h4 class="text-info">{{ stats.total_users|add:"-1" }}</h4>
+                            <p class="small text-muted mb-0">Regular Users</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mb-0">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-info-circle"></i> Session Management
+                    </h6>
+                    <p class="mb-2">
+                        Admin users can monitor active sessions and logout users remotely for security purposes.
+                    </p>
+                    <hr>
+                    <p class="mb-0 small">
+                        <strong>Online Status:</strong> Users are considered online if they have been active in the last 5 minutes.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-primary">
+                                <i class="fas fa-users"></i> Manage Users
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'keycloak_admin:permission_list' %}" class="btn btn-warning">
+                                <i class="fas fa-shield-alt"></i> Manage Permissions
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-info">
+                                <i class="fas fa-list"></i> View All Users
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-left-primary {
+    border-left: 4px solid #4e73df !important;
+}
+
+.border-left-success {
+    border-left: 4px solid #1cc88a !important;
+}
+
+.border-left-info {
+    border-left: 4px solid #36b9cc !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid #f6c23e !important;
+}
+
+.user-avatar-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.logout-user-btn {
+    transition: all 0.2s ease;
+}
+
+.logout-user-btn:hover {
+    transform: scale(1.05);
+}
+
+.stats-card {
+    transition: transform 0.2s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle logout user button clicks
+    const logoutButtons = document.querySelectorAll('.logout-user-btn');
+
+    logoutButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const username = this.dataset.username;
+
+            if (confirm(`Are you sure you want to logout user "${username}"?`)) {
+                // Disable button and show loading
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                // Send logout request
+                fetch(`/admin/users/${userId}/logout/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the user row or update status
+                        const userRow = this.closest('tr');
+                        const statusCell = userRow.querySelector('td:nth-child(3)');
+                        statusCell.innerHTML = '<span class="badge bg-secondary">Offline</span>';
+
+                        // Remove logout button
+                        this.remove();
+
+                        // Update online users count
+                        const onlineCountElement = document.querySelector('.border-left-warning .h5');
+                        if (onlineCountElement) {
+                            const currentCount = parseInt(onlineCountElement.textContent);
+                            onlineCountElement.textContent = Math.max(0, currentCount - 1);
+                        }
+
+                        // Show success message
+                        showAlert('success', data.message || 'User logged out successfully');
+                    } else {
+                        showAlert('danger', data.error || 'Failed to logout user');
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'An error occurred while logging out the user');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
+                });
+            }
+        });
+    });
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Helper function to show alerts
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(alertDiv);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 5000);
+    }
+
+    // Auto-refresh dashboard every 30 seconds
+    setInterval(() => {
+        window.location.reload();
+    }, 30000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,243 @@
+{% extends 'keycloak_admin/base.html' %}
+
+{% block title %}{{ action }} User - Keycloak Admin{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Users
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-user{% if action == 'Create' %}-plus{% else %}-edit{% endif %}"></i>
+                    {{ action }} User
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- User Information -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-secondary">User Information</h6>
+                            <hr>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">
+                                Username <span class="text-danger">*</span>
+                            </label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.username.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.username.help_text }}</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                Email Address <span class="text-danger">*</span>
+                            </label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.email.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.email.help_text }}</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.first_name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.last_name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Password Settings -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-secondary">Password Settings</h6>
+                            <hr>
+                        </div>
+
+                        {% if action == 'Create' %}
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">
+                                    Password <span class="text-danger">*</span>
+                                </label>
+                                {{ form.password }}
+                                {% if form.password.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    Password must be at least 8 characters long.
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">
+                                    Confirm Password <span class="text-danger">*</span>
+                                </label>
+                                {{ form.confirm_password }}
+                                {% if form.confirm_password.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.confirm_password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    {{ form.temporary_password }}
+                                    <label class="form-check-label" for="{{ form.temporary_password.id_for_label }}">
+                                        {{ form.temporary_password.help_text }}
+                                    </label>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="col-12">
+                                <p class="text-muted">
+                                    <i class="fas fa-info-circle"></i>
+                                    Leave password fields empty to keep current password.
+                                </p>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">New Password</label>
+                                {{ form.password }}
+                                {% if form.password.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.password.help_text }}</div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">Confirm New Password</label>
+                                {{ form.confirm_password }}
+                                {% if form.confirm_password.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.confirm_password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Account Settings -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-secondary">Account Settings</h6>
+                            <hr>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                {{ form.email_verified }}
+                                <label class="form-check-label" for="{{ form.email_verified.id_for_label }}">
+                                    {{ form.email_verified.help_text }}
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                {{ form.enabled }}
+                                <label class="form-check-label" for="{{ form.enabled.id_for_label }}">
+                                    Account is enabled
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                                <div>
+                                    <button type="reset" class="btn btn-outline-warning me-2">
+                                        <i class="fas fa-undo"></i> Reset
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> {{ action }} User
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-label {
+    font-weight: 500;
+}
+
+.text-danger {
+    font-weight: 500;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Password confirmation validation
+    const passwordField = document.getElementById('{{ form.password.id_for_label }}');
+    const confirmPasswordField = document.getElementById('{{ form.confirm_password.id_for_label }}');
+
+    function validatePasswordMatch() {
+        if (confirmPasswordField.value && passwordField.value !== confirmPasswordField.value) {
+            confirmPasswordField.setCustomValidity('Passwords do not match');
+                        } else {
+            confirmPasswordField.setCustomValidity('');
+        }
+    }
+
+    if (passwordField && confirmPasswordField) {
+        passwordField.addEventListener('input', validatePasswordMatch);
+        confirmPasswordField.addEventListener('input', validatePasswordMatch);
+    }
+
+    // Form submission validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        if (passwordField.value && passwordField.value.length < 8) {
+            e.preventDefault();
+            alert('Password must be at least 8 characters long.');
+            passwordField.focus();
+        }
+    });
+});
+</script>
+{% endblock %}

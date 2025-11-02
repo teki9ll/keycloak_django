@@ -33,8 +33,10 @@ ALLOWED_HOSTS = ['*']  # For development - restrict in production
 
 INSTALLED_APPS = [
     'django.contrib.sessions',
+    'django.contrib.messages',
     'rest_framework',
     'app',
+    'keycloak_admin',
 ]
 
 MIDDLEWARE = [

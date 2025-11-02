@@ -37,7 +37,7 @@ class SessionManager:
         # Session information
         session_info = {
             'session_key': session_key,
-            'user_id': user_id,
+            'user_id': user_id or username,  # Fallback to username if no user_id
             'username': username,
             'created_at': int(time.time()),
             'last_accessed': int(time.time()),
@@ -391,6 +391,42 @@ class SessionManager:
         cached_history = cache.get(history_key, [])
 
         return cached_history[:limit]
+
+    @classmethod
+    def update_session_activity(cls, request):
+        """Update the last activity time for current user's session"""
+        if not request.session or not request.session.session_key:
+            return False
+
+        user_info = request.session.get('user_info', {})
+        if not user_info:
+            return False
+
+        session_key = request.session.session_key
+        user_id = user_info.get('sub', '')
+        username = user_info.get('username', '')
+
+        if not session_key or not user_id:
+            return False
+
+        # Get existing session info
+        session_cache_key = f"{cls.SESSION_INFO_PREFIX}{session_key}"
+        session_info = cache.get(session_cache_key)
+
+        if not session_info:
+            # Session not found in cache, recreate it
+            return cls.create_session(request, user_info)
+
+        # Update last activity time
+        session_info['last_accessed'] = int(time.time())
+        session_info['ip_address'] = cls._get_client_ip(request)
+        session_info['is_active'] = True
+
+        # Save updated session info
+        cache.set(session_cache_key, session_info, cls.DEFAULT_SESSION_TIMEOUT)
+
+        logger.debug(f"Updated session activity for user: {username}")
+        return True
 
     @classmethod
     def _is_session_cached(cls, session_key):

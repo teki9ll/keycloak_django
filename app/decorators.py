@@ -1,5 +1,6 @@
 from django.http import JsonResponse
 from functools import wraps
+from .session_manager import SessionManager
 
 
 class AnonymousUser:
@@ -58,3 +59,24 @@ def require_any_role(role_names):
             return view_func(request, *args, **kwargs)
         return wrapper
     return decorator
+
+
+def track_user_activity(view_func):
+    """
+    Decorator to track user activity for session management.
+    Updates the last activity time for authenticated users.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        # Track activity for authenticated users
+        if hasattr(request, 'session') and request.session.get('user_info'):
+            try:
+                SessionManager.update_session_activity(request)
+            except Exception as e:
+                # Log error but don't break the view function
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error tracking user activity: {e}")
+
+        return view_func(request, *args, **kwargs)
+    return wrapper
