@@ -1,0 +1,66 @@
+{% extends 'app/base.html' %}
+
+{% block title %}Login - Keycloak Demo{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center min-vh-100">
+    <div class="col-md-6 col-lg-4">
+        <div class="login-container p-5">
+            <div class="text-center mb-4">
+                <div class="keycloak-logo">
+                    <i class="fas fa-key"></i>
+                </div>
+                <h2 class="fw-bold text-dark">Welcome Back</h2>
+                <p class="text-muted">Sign in to access your dashboard</p>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle"></i> {{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
+            <div class="d-grid">
+                <form method="post" action="{% url 'login' %}" id="loginForm">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-keycloak btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>
+                        Sign in with Keycloak
+                    </button>
+                    <div class="loading-spinner text-center mt-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Redirecting to Keycloak...</p>
+                    </div>
+                </form>
+            </div>
+
+            <div class="text-center mt-4">
+                <small class="text-muted">
+                    <i class="fas fa-shield-alt"></i>
+                    Secure authentication powered by Keycloak
+                </small>
+            </div>
+
+            <div class="mt-4 p-3 bg-light rounded">
+                <h6 class="fw-bold text-muted mb-2">Demo Instructions:</h6>
+                <ul class="small text-muted mb-0">
+                    <li>Click "Sign in with Keycloak" to authenticate</li>
+                    <li>Use your Keycloak credentials</li>
+                    <li>After login, you'll see your user dashboard</li>
+                    <li>Dashboard shows user roles and permissions</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', function() {
+    document.querySelector('.btn-keycloak').style.display = 'none';
+    document.querySelector('.loading-spinner').style.display = 'block';
+});
+</script>
+{% endblock %}
