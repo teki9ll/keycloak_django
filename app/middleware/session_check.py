@@ -42,37 +42,41 @@ class SessionValidationMiddleware:
             user_info = request.session.get('user_info', {})
 
             # Only validate if we have tokens, user info, and session was actually tracked
-            if (access_token and user_info and 'username' in user_info and
-                # Check if we have session tracking data in cache
-                SessionManager._is_session_cached(session_key)):
+            if (access_token and user_info and 'username' in user_info):
                 username = user_info.get('username')
                 user_id = user_info.get('sub')
 
-                try:
-                    # Check if this session is still active in our cache-based tracking system
-                    is_session_valid = SessionManager.is_session_valid(session_key)
+                # Check if we have session tracking data in cache
+                is_cached = SessionManager._is_session_cached(session_key)
+                logger.info(f"Session check for {username} - Key: {session_key[:8]}... Cached: {is_cached}")
 
-                    logger.debug(f"Session validation for {username} - Session key: {session_key[:8]}... Valid: {is_session_valid}")
+                if is_cached:
+                    try:
+                        # Check if this session is still active in our cache-based tracking system
+                        is_session_valid = SessionManager.is_session_valid(session_key)
 
-                    if not is_session_valid:
-                        logger.info(f"Session {session_key[:8]}... for user {username} has been invalidated. Redirecting to login.")
+                        logger.info(f"Session validation for {username} - Key: {session_key[:8]}... Valid: {is_session_valid}")
 
-                        # Clear the invalid session completely
-                        request.session.flush()
+                        if not is_session_valid:
+                            logger.warning(f"Session {session_key[:8]}... for user {username} has been invalidated. Redirecting to login.")
 
-                        # Add a message explaining why they were logged out
-                        from django.contrib import messages
-                        messages.warning(request, "Your session has been expired due to a logout from another device.")
+                            # Clear the invalid session completely
+                            request.session.flush()
 
-                        return redirect('login')
+                            # Add a message explaining why they were logged out
+                            from django.contrib import messages
+                            messages.warning(request, "Your session has been expired due to a logout from another device.")
 
-                    logger.debug(f"Session {session_key[:8]}... for user {username} is valid.")
+                            return redirect('login')
 
-                except Exception as e:
-                    logger.error(f"Error validating session: {e}")
-                    # If there's an error checking the session, we'll allow the request to continue
-                    # but log the issue for debugging
-                    import traceback
-                    traceback.print_exc()
+                        logger.info(f"Session {session_key[:8]}... for user {username} is valid.")
+                    except Exception as e:
+                        logger.error(f"Error validating session: {e}")
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    logger.warning(f"Session {session_key[:8]}... for {username} not found in cache - might be old session")
+                    # We could optionally invalidate sessions not in cache
+                    # For now, we'll let them continue
 
         return self.get_response(request)

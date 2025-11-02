@@ -97,6 +97,7 @@ def custom_login_submit(request):
         try:
             payload = jwt.decode(access_token, options={"verify_signature": False})
             user_info = {
+                'sub': payload.get('sub', ''),  # User ID from Keycloak
                 'username': payload.get('preferred_username', username),
                 'email': payload.get('email', ''),
                 'name': payload.get('name', ''),
@@ -106,7 +107,7 @@ def custom_login_submit(request):
             }
         except Exception as e:
             print(f"Error decoding token: {e}")
-            user_info = {'username': username}
+            user_info = {'username': username, 'sub': username}  # Fallback
 
         # Store user info in session for middleware
         request.session['user_info'] = user_info
