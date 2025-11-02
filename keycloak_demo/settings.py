@@ -42,7 +42,9 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'app.middleware.keycloak_auth.KeycloakAuthMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',  # Messages framework
+    'app.middleware.keycloak_auth.KeycloakAuthMiddleware',  # Set up user object first
+    'app.middleware.session_check.SessionValidationMiddleware',  # Then check session validity
 ]
 
 ROOT_URLCONF = 'keycloak_demo.urls'

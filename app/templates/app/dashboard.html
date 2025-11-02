@@ -12,7 +12,7 @@
                         <i class="fas fa-user"></i>
                     </div>
                 </div>
-                <div class="col-md-10">
+                <div class="col-md-8">
                     <h2 class="mb-1">Welcome back, {{ user.username }}!</h2>
                     <p class="mb-2 opacity-75">{{ user_info.email|default:"No email provided" }}</p>
                     <div class="mt-3">
@@ -25,6 +25,20 @@
                         </span>
                         {% endfor %}
                     </div>
+                </div>
+                <div class="col-md-2 text-end">
+                    <form method="post" action="/auth/logout/" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to logout?')">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
+                    <form method="post" action="/auth/keycloak-logout/" style="display: inline; margin-top: 5px;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Logout from all devices">
+                            <i class="fas fa-shield-alt"></i> Full Logout
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

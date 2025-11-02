@@ -3,48 +3,144 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth import logout as django_logout
+from django.contrib import messages
 from django.conf import settings
 from urllib.parse import urlencode
 from app.decorators import keycloak_login_required, require_role, require_any_role, AnonymousUser
 import json
 import base64
 import secrets
+import requests
+import time
+import jwt
 
 
 def login(request):
-    """Login page - redirects to Keycloak for authentication"""
+    """Login page - shows custom login form"""
     if getattr(request.user, 'is_authenticated', False):
         return redirect('dashboard')
 
-    if request.method == 'POST':
-        # Generate PKCE parameters
-        # code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
-        # request.session['pkce_code_verifier'] = code_verifier
+    return render(request, 'app/custom_login.html')
 
-        # code_challenge = base64.urlsafe_b64encode(
-        #     code_verifier.encode('utf-8')
-        # ).decode('utf-8').rstrip('=')
 
-        # Generate state parameter for security
-        state = secrets.token_urlsafe(16)
-        request.session['oauth_state'] = state
+@require_http_methods(["POST"])
+@csrf_exempt
+def custom_login_submit(request):
+    """Handle custom login form submission"""
+    try:
+        # Get form data
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
 
-        # Build Keycloak authorization URL
-        auth_params = {
+        if not username or not password:
+            return JsonResponse({
+                'success': False,
+                'error': 'Username and password are required'
+            })
+
+        # Use Keycloak's Resource Owner Password Credentials Grant
+        token_data = {
+            'grant_type': 'password',
             'client_id': settings.KEYCLOAK_CLIENT_ID,
-            'response_type': 'code',
-            'scope': 'openid profile email',
-            'redirect_uri': request.build_absolute_uri('/callback/'),
-            'state': state,
-            # 'code_challenge': code_challenge,
-            # 'code_challenge_method': 'S256',
+            'client_secret': settings.KEYCLOAK_CLIENT_SECRET,
+            'username': username,
+            'password': password,
+            'scope': 'openid profile email'
         }
 
-        auth_url = f"{settings.KEYCLOAK_SERVER_URL}realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/auth?{urlencode(auth_params)}"
+        token_url = f"{settings.KEYCLOAK_SERVER_URL}realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token"
 
-        return redirect(auth_url)
+        # Debug logging
+        print(f"Custom login attempt for user: {username}")
+        print(f"Token URL: {token_url}")
+        print(f"Client ID: {settings.KEYCLOAK_CLIENT_ID}")
 
-    return render(request, 'app/login.html')
+        response = requests.post(token_url, data=token_data)
+        print(f"Token response status: {response.status_code}")
+
+        if response.status_code != 200:
+            error_info = {
+                'success': False,
+                'error': 'Invalid username or password'
+            }
+
+            try:
+                error_data = response.json()
+                error_description = error_data.get('error_description', error_data.get('error'))
+                if error_description:
+                    error_info['error'] = error_description
+            except:
+                pass
+
+            return JsonResponse(error_info)
+
+        token_info = response.json()
+        access_token = token_info.get('access_token')
+        refresh_token = token_info.get('refresh_token')
+        expires_in = token_info.get('expires_in', 3600)
+
+        # Store tokens in session
+        request.session['access_token'] = access_token
+        if refresh_token:
+            request.session['refresh_token'] = refresh_token
+
+        # Store token metadata
+        request.session['token_acquired_at'] = int(time.time())
+        request.session['token_expires_in'] = expires_in
+        request.session['authenticated_at'] = int(time.time())
+
+        # Ensure session persists for 30 days
+        request.session.set_expiry(30 * 24 * 60 * 60)
+
+        # Decode token to get user info
+        user_info = {}
+        try:
+            payload = jwt.decode(access_token, options={"verify_signature": False})
+            user_info = {
+                'username': payload.get('preferred_username', username),
+                'email': payload.get('email', ''),
+                'name': payload.get('name', ''),
+                'given_name': payload.get('given_name', ''),
+                'family_name': payload.get('family_name', ''),
+                'roles': payload.get('realm_access', {}).get('roles', [])
+            }
+        except Exception as e:
+            print(f"Error decoding token: {e}")
+            user_info = {'username': username}
+
+        # Store user info in session for middleware
+        request.session['user_info'] = user_info
+
+        # Ensure session is saved and has a session key
+        if not request.session.session_key:
+            request.session.create()
+            print(f"Created new session with key: {request.session.session_key}")
+
+        # Create session tracking record
+        try:
+            from app.models import UserSession
+            user_session = UserSession.create_session(request, user_info)
+            print(f"Session tracking record created: {user_session}")
+        except Exception as e:
+            print(f"Failed to create session tracking record: {e}")
+            # Continue with login even if tracking fails
+            import traceback
+            traceback.print_exc()
+
+        print(f"Custom login successful for user: {username}")
+
+        return JsonResponse({
+            'success': True,
+            'redirect_url': '/dashboard/',
+            'user_info': user_info
+        })
+
+    except Exception as e:
+        print(f"Custom login error: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Authentication failed. Please try again.'
+        })
 
 
 def callback(request):
@@ -145,22 +241,115 @@ def callback(request):
 
 
 def logout(request):
-    """Logout and redirect to Keycloak"""
+    """Logout and clear session"""
     try:
-        # Clear session
+        # Clear Django session
         request.session.flush()
 
-        # Build Keycloak logout URL
-        logout_params = {
-            'client_id': settings.KEYCLOAK_CLIENT_ID,
-            'post_logout_redirect_uri': request.build_absolute_uri('/'),
-        }
+        # Optional: Also logout from Keycloak if refresh token exists
+        # This requires additional implementation with Keycloak logout endpoint
 
-        logout_url = f"{settings.KEYCLOAK_SERVER_URL}realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/logout?{urlencode(logout_params)}"
-
-        return redirect(logout_url)
+        return redirect('login')
 
     except Exception:
+        return redirect('login')
+
+
+def keycloak_logout(request):
+    """Logout from both Django and Keycloak (global logout across all devices)"""
+    try:
+        # Get session information before clearing
+        session_key = request.session.session_key
+        user_info = request.session.get('user_info', {})
+        access_token = request.session.get('access_token')
+        refresh_token = request.session.get('refresh_token')
+
+        user_id = user_info.get('sub')
+        username = user_info.get('username', user_info.get('preferred_username'))
+
+        print(f"🔐 Starting GLOBAL LOGOUT for user: {username} (ID: {user_id})")
+        print(f"Current session: {session_key}")
+
+        # Track the logout request
+        sessions_affected = 0
+
+        # Step 1: Invalidate all Django sessions for this user using our tracking system
+        try:
+            from app.models import UserSession, GlobalLogoutRequest
+
+            # Invalidate all active sessions for this user
+            invalidated_count = UserSession.invalidate_all_user_sessions(
+                user_id=user_id,
+                username=username
+            )
+            sessions_affected += invalidated_count
+            print(f"✅ Invalidated {invalidated_count} Django session(s) for user {username}")
+
+            # Record the global logout request for auditing
+            logout_request = GlobalLogoutRequest.objects.create(
+                user_id=user_id or '',
+                username=username or '',
+                logout_type='global',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                sessions_affected=invalidated_count,
+                completed_successfully=True
+            )
+            print(f"📝 Global logout recorded: {logout_request}")
+
+        except Exception as e:
+            print(f"❌ Failed to invalidate Django sessions: {e}")
+
+        # Step 2: Try to logout from Keycloak using refresh token (current session)
+        if refresh_token:
+            logout_data = {
+                'client_id': settings.KEYCLOAK_CLIENT_ID,
+                'client_secret': settings.KEYCLOAK_CLIENT_SECRET,
+                'refresh_token': refresh_token
+            }
+
+            logout_url = f"{settings.KEYCLOAK_SERVER_URL}realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/logout"
+
+            try:
+                response = requests.post(logout_url, data=logout_data)
+                print(f"🔑 Keycloak logout response status: {response.status_code}")
+                if response.status_code == 204:
+                    print("✅ Current session logged out from Keycloak successfully")
+                else:
+                    print(f"⚠️ Keycloak logout response: {response.text}")
+            except Exception as e:
+                print(f"❌ Failed to logout from Keycloak: {e}")
+
+        # Step 3: Try to use the access token for additional Keycloak logout
+        if access_token:
+            try:
+                headers = {'Authorization': f'Bearer {access_token}'}
+                session_logout_url = f"{settings.KEYCLOAK_SERVER_URL}realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/logout"
+                session_response = requests.post(session_logout_url, headers=headers)
+                print(f"🌐 Access token logout response: {session_response.status_code}")
+            except Exception as e:
+                print(f"❌ Failed to use access token for logout: {e}")
+
+        # Step 4: Clear the current Django session
+        request.session.flush()
+
+        print(f"🎉 GLOBAL LOGOUT COMPLETED:")
+        print(f"   - User: {username}")
+        print(f"   - Sessions invalidated: {sessions_affected}")
+        print(f"   - Django session cleared: ✅")
+        print(f"   - Keycloak logout attempted: ✅")
+
+        # Add a success message with details
+        if sessions_affected > 1:
+            messages.success(request, f"You have been logged out from {sessions_affected} devices across all browsers.")
+        else:
+            messages.success(request, "You have been logged out successfully.")
+
+        return redirect('login')
+
+    except Exception as e:
+        print(f"❌ Global logout error: {e}")
+        messages.error(request, "There was an error during logout. Please try again.")
         return redirect('login')
 
 

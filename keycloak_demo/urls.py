@@ -26,6 +26,11 @@ urlpatterns = [
     path('logout/', views.logout, name='logout'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
 
+    # Custom authentication
+    path('auth/custom-login/', views.custom_login_submit, name='custom_login_submit'),
+    path('auth/logout/', views.logout, name='django_logout'),
+    path('auth/keycloak-logout/', views.keycloak_logout, name='keycloak_logout'),
+
     # API endpoints
     path('api/public/', views.public_info, name='public_api'),
     path('api/dashboard/', views.dashboard, name='dashboard_api'),
