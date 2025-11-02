@@ -187,7 +187,8 @@ def dashboard_view(request):
                 'family_name': payload.get('family_name'),
                 'email': payload.get('email'),
             }
-        except:
+        except Exception as e:
+            print(f"Error decoding token: {e}")
             pass
 
     context = {
@@ -196,6 +197,7 @@ def dashboard_view(request):
         'session_info': {
             'authenticated_at': request.session.get('authenticated_at'),
             'token_present': bool(token),
+            'token_needs_refresh': request.session.get('token_needs_refresh', False),
         }
     }
 

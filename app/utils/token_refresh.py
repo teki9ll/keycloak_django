@@ -60,11 +60,27 @@ class TokenRefreshManager:
         }
 
         try:
+            print(f"Refreshing token at: {token_url}")
+            print(f"Client ID: {settings.KEYCLOAK_CLIENT_ID}")
+            print(f"Refresh token (first 20 chars): {refresh_token[:20]}...")
+
             response = requests.post(token_url, data=refresh_data, timeout=10)
+
+            print(f"Response status: {response.status_code}")
+            print(f"Response headers: {dict(response.headers)}")
+            print(f"Response body: {response.text[:500]}...")  # First 500 chars
+
             response.raise_for_status()
 
-            return response.json()
+            token_data = response.json()
+            print(f"Token refresh successful - got new access token")
+            return token_data
 
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP Error during token refresh: {e}")
+            print(f"Response status: {e.response.status_code}")
+            print(f"Response body: {e.response.text}")
+            return None
         except requests.RequestException as e:
             print(f"Token refresh failed: {e}")
             return None
