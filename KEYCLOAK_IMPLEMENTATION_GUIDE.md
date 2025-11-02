@@ -15,6 +15,7 @@ This guide provides complete, copy-paste ready code to replace Django's default 
 - 🌍 **Global logout** across all devices
 - 🎭 **Role-based access control**
 - 📊 **Session tracking** and audit trails
+- 🗄️ **Database-free** (uses Django cache only)
 
 ---
 
@@ -92,94 +93,223 @@ KEYCLOAK_CLIENT_SECRET=your_client_secret_here
 python manage.py startapp your_app_name
 ```
 
-### **Step 4: Create Models**
+### **Step 4: Configure Cache (Required for Session Tracking)**
 
-Copy to `your_app_name/models.py`:
+This implementation uses Django's cache framework for session tracking - no database required!
+
+Add to your `settings.py`:
 ```python
-from django.db import models
-from django.utils import timezone
+# Cache configuration for session tracking (no database needed)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'keycloak-sessions',
+        'TIMEOUT': 30 * 24 * 60 * 60,  # 30 days
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+            'CULL_FREQUENCY': 3,
+        }
+    }
+}
+
+# For production, you might want Redis or Memcached:
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': 'redis://127.0.0.1:6379/1',
+#         'TIMEOUT': 30 * 24 * 60 * 60,
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#         }
+#     }
+# }
+```
+
+### **Step 5: Create Session Manager**
+
+Copy to `your_app_name/session_manager.py`:
+```python
+"""
+Database-free session tracking using Django's cache framework.
+This provides session management without requiring database models.
+"""
+
+from django.core.cache import cache
+from django.conf import settings
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class UserSession(models.Model):
-    """Track active user sessions for global logout"""
-    user_id = models.CharField(max_length=255, db_index=True)
-    username = models.CharField(max_length=150, db_index=True)
-    session_key = models.CharField(max_length=40, unique=True, db_index=True)
+class SessionManager:
+    """In-memory session tracking using Django cache"""
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_accessed = models.DateTimeField(auto_now=True)
-    expires_at = models.DateTimeField()
+    # Cache key prefixes
+    USER_SESSIONS_PREFIX = "keycloak_user_sessions:"
+    SESSION_INFO_PREFIX = "keycloak_session_info:"
+    LOGOUT_REQUEST_PREFIX = "keycloak_logout:"
 
-    user_agent = models.TextField(blank=True)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    session_data = models.JSONField(default=dict, blank=True)
-
-    is_active = models.BooleanField(default=True)
-    logout_requested = models.BooleanField(default=False)
-
-    class Meta:
-        db_table = 'keycloak_user_sessions'
+    # Default timeouts
+    DEFAULT_SESSION_TIMEOUT = 30 * 24 * 60 * 60  # 30 days
 
     @classmethod
     def create_session(cls, request, user_info):
-        """Create new session record"""
-        session = cls.objects.create(
-            user_id=user_info.get('sub', ''),
-            username=user_info.get('username', user_info.get('preferred_username', '')),
-            session_key=request.session.session_key,
-            expires_at=request.session.get_expiry_date(),
-            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-            ip_address=cls._get_client_ip(request),
-            session_data={
-                'created_at': int(time.time()),
-                'roles': user_info.get('roles', []),
-            }
-        )
-        return session
+        """Create a new session record in cache"""
+        session_key = request.session.session_key
+        user_id = user_info.get('sub', '')
+        username = user_info.get('username', user_info.get('preferred_username', ''))
+
+        if not session_key:
+            logger.warning("Cannot create session record - no session key available")
+            return False
+
+        # Session information
+        session_info = {
+            'session_key': session_key,
+            'user_id': user_id,
+            'username': username,
+            'created_at': int(time.time()),
+            'last_accessed': int(time.time()),
+            'expires_at': request.session.get_expiry_date().timestamp(),
+            'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200],
+            'ip_address': cls._get_client_ip(request),
+            'roles': user_info.get('roles', []),
+            'email': user_info.get('email', ''),
+            'is_active': True,
+        }
+
+        # Store session info
+        session_cache_key = f"{cls.SESSION_INFO_PREFIX}{session_key}"
+        cache.set(session_cache_key, session_info, cls.DEFAULT_SESSION_TIMEOUT)
+
+        # Add to user's active sessions list
+        user_sessions_key = f"{cls.USER_SESSIONS_PREFIX}{user_id}"
+        user_sessions = cache.get(user_sessions_key, [])
+
+        # Remove any expired sessions from the list
+        user_sessions = [s for s in user_sessions if s != session_key and cls._is_session_cached(s)]
+
+        # Add new session if not already present
+        if session_key not in user_sessions:
+            user_sessions.append(session_key)
+
+        cache.set(user_sessions_key, user_sessions, cls.DEFAULT_SESSION_TIMEOUT)
+
+        logger.info(f"Created session tracking for user: {username}, session: {session_key[:8]}...")
+        return True
+
+    @classmethod
+    def is_session_valid(cls, session_key):
+        """Check if session is still valid and active"""
+        if not session_key:
+            return False
+
+        session_cache_key = f"{cls.SESSION_INFO_PREFIX}{session_key}"
+        session_info = cache.get(session_cache_key)
+
+        if not session_info:
+            return False
+
+        # Check if session is still active
+        if not session_info.get('is_active', True):
+            return False
+
+        # Check if session has expired
+        if time.time() > session_info.get('expires_at', 0):
+            cls.invalidate_session(session_key)
+            return False
+
+        # Update last accessed time
+        session_info['last_accessed'] = int(time.time())
+        cache.set(session_cache_key, session_info, cls.DEFAULT_SESSION_TIMEOUT)
+
+        return True
+
+    @classmethod
+    def invalidate_session(cls, session_key):
+        """Mark a single session as inactive"""
+        if not session_key:
+            return False
+
+        session_cache_key = f"{cls.SESSION_INFO_PREFIX}{session_key}"
+        session_info = cache.get(session_cache_key)
+
+        if session_info:
+            session_info['is_active'] = False
+            session_info['logout_requested'] = True
+            cache.set(session_cache_key, session_info, cls.DEFAULT_SESSION_TIMEOUT)
+            return True
+
+        return False
 
     @classmethod
     def invalidate_all_user_sessions(cls, user_id=None, username=None):
-        """Invalidate all sessions for a user"""
-        sessions = cls.objects.filter(is_active=True)
-        if user_id:
-            sessions = sessions.filter(user_id=user_id)
-        elif username:
-            sessions = sessions.filter(username=username)
+        """Invalidate all active sessions for a user"""
+        if not user_id and not username:
+            return 0
 
-        count = sessions.count()
-        sessions.update(is_active=False, logout_requested=True)
-        return count
+        sessions_invalidated = 0
+
+        # For simplicity, we'll use username if no user_id provided
+        # In production, you might want to maintain a username->user_id mapping
+
+        # Get all sessions for this user (simplified approach)
+        # This implementation works by checking sessions that have matching username
+        all_session_keys = cache.keys(f"{cls.SESSION_INFO_PREFIX}*")
+
+        for session_cache_key in all_session_keys:
+            session_info = cache.get(session_cache_key)
+            if session_info and session_info.get('is_active', True):
+                session_username = session_info.get('username')
+                session_user_id = session_info.get('user_id')
+
+                if (username and session_username == username) or (user_id and session_user_id == user_id):
+                    cls.invalidate_session(session_cache_key.replace(cls.SESSION_INFO_PREFIX, ''))
+                    sessions_invalidated += 1
+
+        logger.info(f"Invalidated {sessions_invalidated} sessions for user: {username or user_id}")
+        return sessions_invalidated
+
+    @classmethod
+    def record_logout_request(cls, user_id, username, logout_type='global', sessions_affected=0, request=None):
+        """Record a logout request for audit purposes"""
+        logout_info = {
+            'user_id': user_id,
+            'username': username,
+            'logout_type': logout_type,
+            'sessions_affected': sessions_affected,
+            'requested_at': int(time.time()),
+            'ip_address': request.META.get('REMOTE_ADDR') if request else 'Unknown',
+            'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200] if request else '',
+            'completed_successfully': True,
+            'error_message': '',
+        }
+
+        # Store logout request with unique key
+        logout_key = f"{cls.LOGOUT_REQUEST_PREFIX}{user_id}_{int(time.time())}"
+        cache.set(logout_key, logout_info, 7 * 24 * 60 * 60)  # 7 days
+
+        logger.info(f"Recorded logout request: {logout_type} for {username}, sessions affected: {sessions_affected}")
 
     @staticmethod
-    def _get_client_ip(request):
-        """Get client IP address"""
+    def _is_session_cached(session_key):
+        """Check if session exists in cache"""
+        session_cache_key = f"{SessionManager.SESSION_INFO_PREFIX}{session_key}"
+        return cache.get(session_cache_key) is not None
+
+    @classmethod
+    def _get_client_ip(cls, request):
+        """Get client IP address from request"""
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             return x_forwarded_for.split(',')[0]
         return request.META.get('REMOTE_ADDR')
-
-
-class GlobalLogoutRequest(models.Model):
-    """Track global logout requests for auditing"""
-    user_id = models.CharField(max_length=255, db_index=True)
-    username = models.CharField(max_length=150, db_index=True)
-    logout_type = models.CharField(max_length=20, default='global')
-
-    requested_at = models.DateTimeField(auto_now_add=True)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.TextField(blank=True)
-
-    sessions_affected = models.PositiveIntegerField(default=0)
-    completed_successfully = models.BooleanField(default=True)
-    error_message = models.TextField(blank=True)
-
-    class Meta:
-        db_table = 'keycloak_global_logout_requests'
-        ordering = ['-requested_at']
 ```
 
-### **Step 5: Create Authentication Backends**
+**Note**: This approach is completely **database-free**! All session tracking happens in Django's cache memory.
+
+### **Step 6: Create Authentication Backends**
 
 Create directory: `your_app_name/auth/__init__.py` (empty file)
 
@@ -313,7 +443,7 @@ class KeycloakRoleBackend:
         pass
 ```
 
-### **Step 6: Create Authentication Middleware**
+### **Step 7: Create Authentication Middleware**
 
 Copy to `your_app_name/auth/middleware.py`:
 ```python
@@ -460,7 +590,7 @@ class KeycloakAuthMiddleware(AuthenticationMiddleware):
         return AnonymousUser()
 ```
 
-### **Step 7: Create Session Validation Middleware**
+### **Step 8: Create Session Validation Middleware**
 
 Create directory: `your_app_name/middleware/__init__.py` (empty file)
 
@@ -515,7 +645,7 @@ class SessionValidationMiddleware:
             return True  # Allow access if validation fails
 ```
 
-### **Step 8: Create Authentication Decorators**
+### **Step 9: Create Authentication Decorators**
 
 Copy to `your_app_name/decorators.py`:
 ```python
@@ -584,7 +714,7 @@ def require_any_role(allowed_roles):
     return decorator
 ```
 
-### **Step 9: Create Authentication Views**
+### **Step 10: Create Authentication Views**
 
 Copy to `your_app_name/views.py`:
 ```python
@@ -600,7 +730,7 @@ import time
 import json
 
 from .decorators import keycloak_login_required
-from .models import UserSession, GlobalLogoutRequest
+from .session_manager import SessionManager
 
 
 @require_http_methods(["GET"])
@@ -673,9 +803,10 @@ def custom_login_submit(request):
         if not request.session.session_key:
             request.session.create()
 
-        # Create session tracking record
+        # Create session tracking record using cache
         try:
-            UserSession.create_session(request, user_info)
+            SessionManager.create_session(request, user_info)
+            print(f"Session tracking created in cache for user: {username}")
         except Exception as e:
             print(f"Session tracking error: {e}")
 
@@ -714,22 +845,21 @@ def keycloak_logout(request):
 
         sessions_affected = 0
 
-        # Invalidate all Django sessions for this user
+        # Invalidate all sessions for this user using cache
         try:
-            invalidated_count = UserSession.invalidate_all_user_sessions(
+            invalidated_count = SessionManager.invalidate_all_user_sessions(
                 user_id=user_id,
                 username=username
             )
             sessions_affected += invalidated_count
 
-            # Record logout request
-            GlobalLogoutRequest.objects.create(
+            # Record logout request in cache
+            SessionManager.record_logout_request(
                 user_id=user_id or '',
                 username=username or '',
                 logout_type='global',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-                sessions_affected=invalidated_count
+                sessions_affected=invalidated_count,
+                request=request
             )
 
         except Exception as e:
@@ -784,7 +914,7 @@ def auth_status(request):
     return JsonResponse({'authenticated': False})
 ```
 
-### **Step 10: Create URLs**
+### **Step 11: Create URLs**
 
 Copy to `your_app_name/urls.py`:
 ```python
@@ -816,7 +946,7 @@ urlpatterns = [
 ]
 ```
 
-### **Step 11: Create Templates**
+### **Step 12: Create Templates**
 
 Create directory: `your_app_name/templates/your_app_name/`
 
@@ -1032,14 +1162,9 @@ Copy to `your_app_name/templates/your_app_name/dashboard.html`:
 {% endblock %}
 ```
 
-### **Step 12: Run Migrations**
+### **Step 13: Configure Keycloak (No Database Required!)**
 
-```bash
-python manage.py makemigrations your_app_name
-python manage.py migrate
-```
-
-### **Step 13: Configure Keycloak**
+Since this implementation uses Django's cache instead of database models, **no database migrations are needed**!
 
 1. **Access Keycloak Admin**: http://localhost:8080/admin
 2. **Create Realm**: Your realm name

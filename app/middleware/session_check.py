@@ -1,11 +1,12 @@
 """
 Middleware to check if user sessions have been invalidated (global logout).
 This middleware runs on every request to ensure the session is still valid.
+Uses cache-based session tracking - no database required.
 """
 
 from django.shortcuts import redirect
 from django.conf import settings
-from app.models import UserSession
+from app.session_manager import SessionManager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 class SessionValidationMiddleware:
     """
-    Middleware that validates the current user session against our tracking system.
+    Middleware that validates the current user session against our cache-based tracking system.
     If the session has been invalidated (e.g., by global logout), redirect to login.
+    No database required - uses Django cache framework.
     """
 
     def __init__(self, get_response):
@@ -39,20 +41,21 @@ class SessionValidationMiddleware:
             access_token = request.session.get('access_token')
             user_info = request.session.get('user_info', {})
 
-            # Only validate if we have tokens and user info (indicating a logged-in session)
-            if access_token and user_info and 'username' in user_info:
+            # Only validate if we have tokens, user info, and session was actually tracked
+            if (access_token and user_info and 'username' in user_info and
+                # Check if we have session tracking data in cache
+                SessionManager._is_session_cached(session_key)):
                 username = user_info.get('username')
                 user_id = user_info.get('sub')
 
                 try:
-                    # Check if this session is still active in our tracking system
-                    is_session_valid = UserSession.objects.filter(
-                        session_key=session_key,
-                        is_active=True
-                    ).exists()
+                    # Check if this session is still active in our cache-based tracking system
+                    is_session_valid = SessionManager.is_session_valid(session_key)
+
+                    logger.debug(f"Session validation for {username} - Session key: {session_key[:8]}... Valid: {is_session_valid}")
 
                     if not is_session_valid:
-                        logger.info(f"Session {session_key} for user {username} has been invalidated. Redirecting to login.")
+                        logger.info(f"Session {session_key[:8]}... for user {username} has been invalidated. Redirecting to login.")
 
                         # Clear the invalid session completely
                         request.session.flush()
@@ -63,7 +66,7 @@ class SessionValidationMiddleware:
 
                         return redirect('login')
 
-                    logger.debug(f"Session {session_key} for user {username} is valid.")
+                    logger.debug(f"Session {session_key[:8]}... for user {username} is valid.")
 
                 except Exception as e:
                     logger.error(f"Error validating session: {e}")

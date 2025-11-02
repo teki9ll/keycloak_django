@@ -116,13 +116,16 @@ def custom_login_submit(request):
             request.session.create()
             print(f"Created new session with key: {request.session.session_key}")
 
-        # Create session tracking record
+        # Create session tracking record using cache
         try:
-            from app.models import UserSession
-            user_session = UserSession.create_session(request, user_info)
-            print(f"Session tracking record created: {user_session}")
+            from app.session_manager import SessionManager
+            session_created = SessionManager.create_session(request, user_info)
+            if session_created:
+                print(f"Session tracking created in cache for user: {username}")
+            else:
+                print(f"Failed to create session tracking in cache")
         except Exception as e:
-            print(f"Failed to create session tracking record: {e}")
+            print(f"Session tracking error: {e}")
             # Continue with login even if tracking fails
             import traceback
             traceback.print_exc()
@@ -273,32 +276,30 @@ def keycloak_logout(request):
         # Track the logout request
         sessions_affected = 0
 
-        # Step 1: Invalidate all Django sessions for this user using our tracking system
+        # Step 1: Invalidate all Django sessions for this user using cache-based tracking
         try:
-            from app.models import UserSession, GlobalLogoutRequest
+            from app.session_manager import SessionManager
 
             # Invalidate all active sessions for this user
-            invalidated_count = UserSession.invalidate_all_user_sessions(
+            invalidated_count = SessionManager.invalidate_all_user_sessions(
                 user_id=user_id,
                 username=username
             )
             sessions_affected += invalidated_count
-            print(f"✅ Invalidated {invalidated_count} Django session(s) for user {username}")
+            print(f"✅ Invalidated {invalidated_count} session(s) for user {username}")
 
             # Record the global logout request for auditing
-            logout_request = GlobalLogoutRequest.objects.create(
+            SessionManager.record_logout_request(
                 user_id=user_id or '',
                 username=username or '',
                 logout_type='global',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
                 sessions_affected=invalidated_count,
-                completed_successfully=True
+                request=request
             )
-            print(f"📝 Global logout recorded: {logout_request}")
+            print(f"📝 Global logout recorded in cache")
 
         except Exception as e:
-            print(f"❌ Failed to invalidate Django sessions: {e}")
+            print(f"❌ Failed to invalidate sessions: {e}")
 
         # Step 2: Try to logout from Keycloak using refresh token (current session)
         if refresh_token:

@@ -152,7 +152,8 @@ The system provides comprehensive session tracking:
 - **Backend**: Django 5.x
 - **Authentication**: Keycloak 23.x
 - **Protocol**: OAuth2 + OpenID Connect
-- **Database**: SQLite (default) / PostgreSQL (production)
+- **Session Storage**: Django Cache (in-memory/Redis) - **Database-free!**
+- **Database**: Optional (only for Django admin, not required for auth)
 - **Frontend**: Bootstrap 5 + Custom CSS
 - **Deployment**: Docker/Podman ready
 
