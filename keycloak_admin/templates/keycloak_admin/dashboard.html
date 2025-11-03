@@ -3,9 +3,34 @@
 {% block title %}Easytask User Management Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Statistics Cards -->
-    <div class="col-xl-3 col-md-6 mb-4">
+<!-- Permission Level Indicator -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info d-flex align-items-center" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            <div class="flex-grow-1">
+                <strong>Permission Level:</strong>
+                {% if 'manage_admin' in current_user_permissions %}
+                    <span class="badge bg-danger">Administrator</span> - Full management access
+                {% elif 'view_admin' in current_user_permissions %}
+                    <span class="badge bg-warning">Viewer</span> - Read-only access
+                {% else %}
+                    <span class="badge bg-secondary">Limited</span> - Basic access
+                {% endif %}
+                {% if not can_manage_admin %}
+                    <span class="ms-3 text-muted">
+                        <i class="fas fa-lock me-1"></i>
+                        Management actions (create, edit, delete users) require admin permissions
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Metrics Section -->
+<div class="row mb-4">
+    <div class="col-xl-6 col-md-6 mb-4">
         <div class="card border-left-primary shadow h-100 py-2 stats-card">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
@@ -13,7 +38,7 @@
                         <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                             Total Users
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_users }}</div>
+                        <div class="h3 mb-0 font-weight-bold text-gray-800">{{ stats.total_users }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-users fa-2x text-gray-300"></i>
@@ -23,51 +48,16 @@
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
+    <div class="col-xl-6 col-md-6 mb-4">
         <div class="card border-left-success shadow h-100 py-2 stats-card">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Total Roles
+                            Online Users (Sessions)
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_roles }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-user-tag fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2 stats-card">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Permissions
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_permissions }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-shield-alt fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2 stats-card">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Online Users
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ online_users_count }}</div>
+                        <div class="h3 mb-0 font-weight-bold text-gray-800">{{ online_users_count }}</div>
+                        <div class="small text-muted">Each user can have multiple sessions</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-chart-line fa-2x text-gray-300"></i>
@@ -78,183 +68,356 @@
     </div>
 </div>
 
-<div class="row">
-    <!-- Recent Users -->
-    <div class="col-lg-6 mb-4">
+
+<!-- Create User Form (only for users with manage_admin permission) -->
+{% if can_manage_admin %}
+<div class="row mb-4">
+    <div class="col-12">
         <div class="card shadow">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-users"></i> Recent Users
+                    <i class="fas fa-user-plus"></i> Create New User
                 </h6>
             </div>
             <div class="card-body">
-                {% if recent_users %}
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Username</th>
-                                    <th>Email</th>
-                                    <th>Session Status</th>
-                                    <th>Account Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in recent_users %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="user-avatar-small me-2">
-                                                {{ user.username|slice:":2"|upper }}
-                                            </div>
-                                            {{ user.username }}
-                                        </div>
-                                    </td>
-                                    <td>{{ user.email }}</td>
-                                    <td>
-                                        {% if user.is_online %}
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-circle"></i> Online
-                                            </span>
-                                            {% if user.ip_address %}
-                                                <small class="text-muted d-block">{{ user.ip_address }}</small>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="badge bg-secondary">Offline</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if user.enabled %}
-                                            <span class="badge bg-success">Active</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">Disabled</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <a href="{% url 'keycloak_admin:user_detail' user.id %}"
-                                               class="btn btn-outline-primary" title="View User">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            {% if user.is_online %}
-                                            <button class="btn btn-outline-danger logout-user-btn"
-                                                    data-user-id="{{ user.id }}"
-                                                    data-username="{{ user.username }}"
-                                                    title="Logout User">
-                                                <i class="fas fa-sign-out-alt"></i>
-                                            </button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <form id="createUserForm" action="/admin/api/users/create/" method="POST" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-md-3">
+                        <label for="newUsername" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="newUsername" name="username" required>
                     </div>
-                    <div class="text-center mt-3">
-                        <a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-primary">
-                            View All Users
-                        </a>
+                    <div class="col-md-3">
+                        <label for="newEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="newEmail" name="email" required>
                     </div>
-                {% else %}
-                    <p class="text-muted">No users found.</p>
-                    <div class="text-center">
-                        <a href="{% url 'keycloak_admin:user_create' %}" class="btn btn-primary">
-                            <i class="fas fa-user-plus"></i> Create First User
-                        </a>
+                    <div class="col-md-2">
+                        <label for="newFirstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="newFirstName" name="first_name">
                     </div>
-                {% endif %}
+                    <div class="col-md-2">
+                        <label for="newLastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="newLastName" name="last_name">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="newPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="newPassword" name="password" placeholder="Leave empty to generate">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Permissions</label>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="perm_view_tasks" name="permissions" value="permission_view_tasks">
+                                    <label class="form-check-label" for="perm_view_tasks">
+                                        <i class="fas fa-tasks text-primary"></i> View Tasks
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="perm_manage_tasks" name="permissions" value="permission_manage_tasks">
+                                    <label class="form-check-label" for="perm_manage_tasks">
+                                        <i class="fas fa-tasks text-danger"></i> Manage Tasks
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="perm_view_integrations" name="permissions" value="permission_view_integrations">
+                                    <label class="form-check-label" for="perm_view_integrations">
+                                        <i class="fas fa-plug text-info"></i> View Integrations
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="perm_manage_integrations" name="permissions" value="permission_manage_integrations">
+                                    <label class="form-check-label" for="perm_manage_integrations">
+                                        <i class="fas fa-plug text-danger"></i> Manage Integrations
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="perm_view_admin" name="permissions" value="permission_view_admin">
+                                    <label class="form-check-label" for="perm_view_admin">
+                                        <i class="fas fa-users text-warning"></i> View Admin
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="perm_manage_admin" name="permissions" value="permission_manage_admin">
+                                    <label class="form-check-label" for="perm_manage_admin">
+                                        <i class="fas fa-users text-danger"></i> Manage Admin
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="perm_operator" name="permissions" value="permission_operator">
+                                    <label class="form-check-label" for="perm_operator">
+                                        <i class="fas fa-cog text-success"></i> Operator
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Create User
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+</div>
+{% endif %}
 
-    <!-- System Overview -->
-    <div class="col-lg-6 mb-4">
+<!-- Users Table -->
+<div class="row mb-4">
+    <div class="col-12">
         <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-success">
-                    <i class="fas fa-chart-pie"></i> System Overview
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-users"></i> Users Management
                 </h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 mb-4">
-                        <div class="border rounded p-3">
-                            <h4 class="text-primary">{{ stats.total_users }}</h4>
-                            <p class="small text-muted mb-0">Total Users</p>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                        <div class="border rounded p-3">
-                            <h4 class="text-success">{{ online_users_count }}</h4>
-                            <p class="small text-muted mb-0">Online Now</p>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                        <div class="border rounded p-3">
-                            <h4 class="text-warning">{{ stats.total_permissions }}</h4>
-                            <p class="small text-muted mb-0">Available Permissions</p>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                        <div class="border rounded p-3">
-                            <h4 class="text-info">{{ stats.total_users|add:"-1" }}</h4>
-                            <p class="small text-muted mb-0">Regular Users</p>
-                        </div>
-                    </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-success me-2">{{ users|length }} Total Users</span>
+                    <button class="btn btn-sm btn-outline-info" onclick="refreshUserTable()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
                 </div>
+            </div>
 
-                <div class="alert alert-info mb-0">
-                    <h6 class="alert-heading">
-                        <i class="fas fa-info-circle"></i> Session Management
-                    </h6>
-                    <p class="mb-2">
-                        Admin users can monitor active sessions and logout users remotely for security purposes.
-                    </p>
-                    <hr>
-                    <p class="mb-0 small">
-                        <strong>Online Status:</strong> Users are considered online if they have been active in the last 5 minutes.
-                    </p>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Session Status</th>
+                                <th>Account Status</th>
+                                <th>Permissions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr data-user-id="{{ user.id }}">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar me-3">
+                                            {{ user.username|slice:":2"|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">{{ user.username }}</div>
+                                            <small class="text-muted">ID: {{ user.id|slice:":8" }}...</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ user.email|default:"N/A" }}</td>
+                                <td>
+                                    {% if user.is_online %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-circle"></i> Online
+                                        </span>
+                                        {% if user.ip_address %}
+                                            <small class="text-muted d-block">{{ user.ip_address }}</small>
+                                        {% endif %}
+                                        <small class="text-muted d-block">
+                                            {{ user.session_count }} session{{ user.session_count|pluralize }}
+                                        </small>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Offline</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.enabled %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for permission in user.permissions %}
+                                        <span class="permission-badge
+                                            {% if 'tasks' in permission %}badge-tasks
+                                            {% elif 'integrations' in permission %}badge-integrations
+                                            {% elif 'admin' in permission %}badge-admin
+                                            {% else %}badge-default{% endif %}">
+                                            {{ permission }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <!-- View buttons - available to all with view_admin -->
+                                        <button class="btn btn-outline-primary"
+                                                onclick="viewUser('{{ user.id }}')"
+                                                title="View User">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info"
+                                                onclick="viewSessions('{{ user.id }}')"
+                                                title="View Sessions">
+                                            <i class="fas fa-desktop"></i>
+                                        </button>
+
+                                        {% if can_manage_admin %}
+                                        <!-- Management buttons - only available to users with manage_admin -->
+                                        <button class="btn btn-outline-warning"
+                                                onclick="editUser('{{ user.id }}')"
+                                                title="Update User">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary"
+                                                onclick="toggleUserStatus('{{ user.id }}', {% if user.enabled %}false{% else %}true{% endif %})"
+                                                title="{% if user.enabled %}Deactivate{% else %}Activate{% endif %}">
+                                            <i class="fas fa-{% if user.enabled %}ban{% else %}check{% endif %}"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger"
+                                                onclick="deleteUser('{{ user.id }}')"
+                                                title="Delete User">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% else %}
+                                        <!-- Show limited actions icon for users without manage_admin -->
+                                        <button class="btn btn-outline-secondary" disabled title="Management actions require admin permissions">
+                                            <i class="fas fa-lock"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Quick Actions -->
+<!-- Permissions Explanation Section -->
 <div class="row">
     <div class="col-12">
         <div class="card shadow">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-info">
-                    <i class="fas fa-bolt"></i> Quick Actions
+                    <i class="fas fa-shield-alt"></i> Available Permissions in Easytask
                 </h6>
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <div class="d-grid">
-                            <a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-primary">
-                                <i class="fas fa-users"></i> Manage Users
-                            </a>
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-success ps-3 mb-4">
+                            <h6 class="text-success">Task Management Permissions</h6>
+                            <div class="mb-3">
+                                <span class="permission-badge badge-tasks">view_tasks</span>
+                                <p class="mt-2 mb-1">Allows users to view tasks, task lists, and task details.</p>
+                                <small class="text-muted">Capabilities: Browse tasks, view details, see assignments and status</small>
+                            </div>
+                            <div>
+                                <span class="permission-badge badge-tasks">manage_tasks</span>
+                                <p class="mt-2 mb-1">Full control over task management operations.</p>
+                                <small class="text-muted">Capabilities: Create, edit, delete, assign tasks, update status and priority</small>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="d-grid">
-                            <a href="{% url 'keycloak_admin:permission_list' %}" class="btn btn-warning">
-                                <i class="fas fa-shield-alt"></i> Manage Permissions
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="d-grid">
-                            <a href="{% url 'keycloak_admin:user_list' %}" class="btn btn-info">
-                                <i class="fas fa-list"></i> View All Users
-                            </a>
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-info ps-3 mb-4">
+                            <h6 class="text-info">Integration Management Permissions</h6>
+                            <div class="mb-3">
+                                <span class="permission-badge badge-integrations">view_integrations</span>
+                                <p class="mt-2 mb-1">View system integrations and connection status.</p>
+                                <small class="text-muted">Capabilities: View integrations, check status, see logs and errors</small>
+                            </div>
+                            <div>
+                                <span class="permission-badge badge-integrations">manage_integrations</span>
+                                <p class="mt-2 mb-1">Full control over system integrations.</p>
+                                <small class="text-muted">Capabilities: Configure integrations, test connections, manage API keys</small>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-warning ps-3 mb-4">
+                            <h6 class="text-warning">Administrative Permissions</h6>
+                            <div class="mb-3">
+                                <span class="permission-badge badge-admin">view_admin</span>
+                                <p class="mt-2 mb-1">Access administrative functions and system settings.</p>
+                                <small class="text-muted">Capabilities: View user management, system statistics, admin reports</small>
+                            </div>
+                            <div>
+                                <span class="permission-badge badge-admin">manage_admin</span>
+                                <p class="mt-2 mb-1">Full administrative access and control.</p>
+                                <small class="text-muted">Capabilities: Manage users, assign permissions, control system settings</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-primary ps-3 mb-4">
+                            <h6 class="text-primary">System Operations</h6>
+                            <div class="mb-3">
+                                <span class="permission-badge badge-default">operator</span>
+                                <p class="mt-2 mb-1">Basic system operations and monitoring.</p>
+                                <small class="text-muted">Capabilities: Monitor system health, view logs, perform routine operations</small>
+                            </div>
+                            <div class="alert alert-info mt-3">
+                                <h6><i class="fas fa-info-circle"></i> Implementation Note</h6>
+                                <p class="mb-2 small">Permissions are implemented as Keycloak roles with "permission_" prefix and are automatically included in JWT tokens for authorization checks.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Detail Modal -->
+<div class="modal fade" id="userDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="userDetailContent">
+                <!-- User details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sessions Modal -->
+<div class="modal fade" id="sessionsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Sessions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="sessionsContent">
+                <!-- Sessions will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="editUserContent">
+                <!-- Edit form will be loaded here -->
             </div>
         </div>
     </div>
@@ -277,9 +440,9 @@
     border-left: 4px solid #f6c23e !important;
 }
 
-.user-avatar-small {
-    width: 32px;
-    height: 32px;
+.user-avatar {
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -287,126 +450,606 @@
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
 }
 
-.logout-user-btn {
-    transition: all 0.2s ease;
+.permission-badge {
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
 }
 
-.logout-user-btn:hover {
-    transform: scale(1.05);
+.badge-tasks {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.badge-integrations {
+    background: linear-gradient(135deg, #17a2b8, #007bff);
+    color: white;
+}
+
+.badge-admin {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: #212529;
+}
+
+.badge-default {
+    background: linear-gradient(135deg, #6c757d, #495057);
+    color: white;
 }
 
 .stats-card {
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stats-card:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fc;
+}
+
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.permissions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.permission-item {
+    background: #f8f9fa;
+    border-left: 4px solid #6c757d;
+    transition: all 0.2s ease;
+}
+
+.permission-item:hover {
+    background: #e9ecef;
+    transform: translateX(2px);
+}
+
+.permission-item:has(.badge-tasks) {
+    border-left-color: #28a745;
+    background: linear-gradient(90deg, rgba(40, 167, 69, 0.05), transparent);
+}
+
+.permission-item:has(.badge-integrations) {
+    border-left-color: #17a2b8;
+    background: linear-gradient(90deg, rgba(23, 162, 184, 0.05), transparent);
+}
+
+.permission-item:has(.badge-admin) {
+    border-left-color: #ffc107;
+    background: linear-gradient(90deg, rgba(255, 193, 7, 0.05), transparent);
+}
+
+.permission-item:has(.badge-default) {
+    border-left-color: #6c757d;
+    background: linear-gradient(90deg, rgba(108, 117, 125, 0.05), transparent);
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle logout user button clicks
-    const logoutButtons = document.querySelectorAll('.logout-user-btn');
+    // Handle create user form submission
+    document.getElementById('createUserForm').addEventListener('submit', function(e) {
+        e.preventDefault();
 
-    logoutButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const userId = this.dataset.userId;
-            const username = this.dataset.username;
+        // Get selected permissions
+        const formData = new FormData(this);
+        document.querySelectorAll('input[name="permissions"]:checked').forEach(checkbox => {
+            formData.append('permissions', checkbox.value);
+        });
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
 
-            if (confirm(`Are you sure you want to logout user "${username}"?`)) {
-                // Disable button and show loading
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating User...';
 
-                // Send logout request
-                fetch(`/admin/users/${userId}/logout/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Remove the user row or update status
-                        const userRow = this.closest('tr');
-                        const statusCell = userRow.querySelector('td:nth-child(3)');
-                        statusCell.innerHTML = '<span class="badge bg-secondary">Offline</span>';
-
-                        // Remove logout button
-                        this.remove();
-
-                        // Update online users count
-                        const onlineCountElement = document.querySelector('.border-left-warning .h5');
-                        if (onlineCountElement) {
-                            const currentCount = parseInt(onlineCountElement.textContent);
-                            onlineCountElement.textContent = Math.max(0, currentCount - 1);
-                        }
-
-                        // Show success message
-                        showAlert('success', data.message || 'User logged out successfully');
-                    } else {
-                        showAlert('danger', data.error || 'Failed to logout user');
-                        this.disabled = false;
-                        this.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('danger', 'An error occurred while logging out the user');
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
-                });
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken')
             }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'User created successfully!');
+                this.reset();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showAlert('danger', data.error || 'Failed to create user');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred while creating the user');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         });
     });
+});
 
-    // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+function viewUser(userId) {
+    const modal = new bootstrap.Modal(document.getElementById('userDetailModal'));
+    const content = document.getElementById('userDetailContent');
+
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading user details...</p>
+        </div>
+    `;
+
+    modal.show();
+
+    fetch(`/admin/api/users/${userId}/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const user = data.user;
+                content.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="user-avatar mx-auto mb-3" style="width: 80px; height: 80px; font-size: 1.5rem;">
+                                ${user.username.slice(0, 2).toUpperCase()}
+                            </div>
+                            <h5>${user.username}</h5>
+                            <span class="badge ${user.enabled ? 'bg-success' : 'bg-danger'}">
+                                ${user.enabled ? 'Active' : 'Disabled'}
+                            </span>
+                        </div>
+                        <div class="col-md-8">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">User ID:</td>
+                                    <td><code>${user.id}</code></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Email:</td>
+                                    <td>${user.email || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">First Name:</td>
+                                    <td>${user.first_name || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Last Name:</td>
+                                    <td>${user.last_name || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Created:</td>
+                                    <td>${user.created_timestamp ? new Date(user.created_timestamp).toLocaleString() : 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Last Login:</td>
+                                    <td>${user.last_session ? new Date(user.last_session).toLocaleString() : 'Never'}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-shield-alt me-2"></i>Assigned Permissions
+                        </h6>
+                        ${user.permissions.length > 0 ? `
+                            <div class="permissions-container">
+                                ${user.permissions.map(perm => `
+                                    <div class="permission-item mb-2 p-3 border rounded-3">
+                                        <div class="d-flex align-items-center">
+                                            <span class="permission-badge me-3
+                                                ${perm.includes('tasks') ? 'badge-tasks' :
+                                                  perm.includes('integrations') ? 'badge-integrations' :
+                                                  perm.includes('admin') ? 'badge-admin' : 'badge-default'}">
+                                                ${perm}
+                                            </span>
+                                            <div class="flex-grow-1">
+                                                <small class="text-muted">
+                                                    ${perm === 'view_tasks' ? 'Can view tasks and task details' : ''}
+                                                    ${perm === 'manage_tasks' ? 'Can create, edit, and manage tasks' : ''}
+                                                    ${perm === 'view_integrations' ? 'Can view system integrations' : ''}
+                                                    ${perm === 'manage_integrations' ? 'Can configure and manage integrations' : ''}
+                                                    ${perm === 'view_admin' ? 'Can access administrative functions' : ''}
+                                                    ${perm === 'manage_admin' ? 'Full administrative access' : ''}
+                                                    ${perm === 'operator' ? 'Basic system operations' : ''}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                No specific permissions assigned to this user.
+                            </div>
+                        `}
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `<div class="alert alert-danger">${data.error || 'Failed to load user details'}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = `<div class="alert alert-danger">An error occurred while loading user details</div>`;
+        });
+}
+
+function viewSessions(userId) {
+    const modal = new bootstrap.Modal(document.getElementById('sessionsModal'));
+    const content = document.getElementById('sessionsContent');
+
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading sessions...</p>
+        </div>
+    `;
+
+    modal.show();
+
+    fetch(`/admin/api/users/${userId}/sessions/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const sessions = data.sessions;
+                if (sessions.length === 0) {
+                    content.innerHTML = '<div class="alert alert-info">No active sessions found for this user.</div>';
+                } else {
+                    content.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Session ID</th>
+                                        <th>IP Address</th>
+                                        <th>Start Time</th>
+                                        <th>Last Activity</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${sessions.map(session => `
+                                        <tr>
+                                            <td><code>${session.id.slice(0, 16)}...</code></td>
+                                            <td>${session.ip_address}</td>
+                                            <td>${new Date(session.start_time).toLocaleString()}</td>
+                                            <td>${new Date(session.last_activity).toLocaleString()}</td>
+                                            <td>
+                                                <span class="badge ${session.is_active ? 'bg-success' : 'bg-secondary'}">
+                                                    ${session.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                ${session.is_active && session.id ? `
+                                                    <button class="btn btn-sm btn-outline-danger"
+                                                            onclick="logoutSession('${session.id}', '${userId}')">
+                                                        <i class="fas fa-sign-out-alt"></i> Logout
+                                                    </button>
+                                                ` : session.is_active ? '<span class="text-muted">No session ID</span>' : '-'}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
                 }
+            } else {
+                content.innerHTML = `<div class="alert alert-danger">${data.error || 'Failed to load sessions'}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = `<div class="alert alert-danger">An error occurred while loading sessions</div>`;
+        });
+}
+
+function editUser(userId) {
+    const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    const content = document.getElementById('editUserContent');
+
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading user data...</p>
+        </div>
+    `;
+
+    modal.show();
+
+    fetch(`/admin/api/users/${userId}/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const user = data.user;
+                content.innerHTML = `
+                    <form id="editUserForm">
+                        <input type="hidden" name="user_id" value="${user.id}">
+                        <div class="mb-3">
+                            <label for="edit_username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="edit_username" name="username" value="${user.username}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="edit_email" name="email" value="${user.email || ''}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_first_name" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="edit_first_name" name="first_name" value="${user.first_name || ''}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="edit_last_name" name="last_name" value="${user.last_name || ''}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_password" class="form-label">New Password (leave empty to keep current)</label>
+                            <input type="password" class="form-control" id="edit_password" name="password">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Permissions</label>
+                            <div class="row">
+                                ${window.availablePermissions.map(perm => `
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions"
+                                                   value="${perm.name}" id="edit_permission_${perm.name}"
+                                                   ${user.permissions.includes(perm.name) ? 'checked' : ''}>
+                                            <label class="form-check-label" for="edit_permission_${perm.name}">
+                                                <span class="permission-badge
+                                                    ${perm.name.includes('tasks') ? 'badge-tasks' :
+                                                      perm.name.includes('integrations') ? 'badge-integrations' :
+                                                      perm.name.includes('admin') ? 'badge-admin' : 'badge-default'}">
+                                                    ${perm.name}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update User
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                `;
+
+                // Handle form submission
+                document.getElementById('editUserForm').addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(this);
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+                    fetch(`/admin/api/users/${userId}/update/`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showAlert('success', 'User updated successfully!');
+                            modal.hide();
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            showAlert('danger', data.error || 'Failed to update user');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showAlert('danger', 'An error occurred while updating the user');
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    });
+                });
+            } else {
+                content.innerHTML = `<div class="alert alert-danger">${data.error || 'Failed to load user data'}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = `<div class="alert alert-danger">An error occurred while loading user data</div>`;
+        });
+}
+
+function toggleUserStatus(userId, activate) {
+    const action = activate ? 'activate' : 'deactivate';
+    const actionText = activate ? 'Activate' : 'Deactivate';
+
+    if (confirm(`Are you sure you want to ${action} this user?`)) {
+        fetch(`/admin/api/users/${userId}/${action}/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', `User ${action}d successfully!`);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showAlert('danger', data.error || `Failed to ${action} user`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', `An error occurred while trying to ${action} the user`);
+        });
+    }
+}
+
+function deleteUser(userId) {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        const confirmDelete = prompt('Type "DELETE" to confirm the deletion:');
+        if (confirmDelete === 'DELETE') {
+            fetch(`/admin/api/users/${userId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', 'User deleted successfully!');
+                    // Remove the user row from table
+                    const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+                    if (row) {
+                        row.remove();
+                    }
+                } else {
+                    showAlert('danger', data.error || 'Failed to delete user');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'An error occurred while deleting the user');
+            });
+        }
+    }
+}
+
+function logoutSession(sessionId, userId) {
+    console.log('logoutSession called with sessionId:', sessionId, 'userId:', userId);
+
+    if (!sessionId) {
+        showAlert('danger', 'Session ID is missing');
+        return;
+    }
+
+    if (confirm('Are you sure you want to logout this session?')) {
+        fetch(`/admin/api/sessions/${sessionId}/logout/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Session logged out successfully!');
+                viewSessions(userId); // Refresh the sessions list
+            } else {
+                showAlert('danger', data.error || 'Failed to logout session');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred while logging out the session');
+        });
+    }
+}
+
+function refreshUserTable() {
+    window.location.reload();
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
             }
         }
-        return cookieValue;
     }
+    return cookieValue;
+}
 
-    // Helper function to show alerts
-    function showAlert(type, message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
 
-        document.body.appendChild(alertDiv);
+    document.body.appendChild(alertDiv);
 
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.parentNode.removeChild(alertDiv);
-            }
-        }, 5000);
-    }
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
 
-    // Auto-refresh dashboard every 30 seconds
-    setInterval(() => {
-        window.location.reload();
-    }, 30000);
-});
+// Make available permissions globally for the edit modal
+window.availablePermissions = {{ available_permissions|safe }};
 </script>
 {% endblock %}

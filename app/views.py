@@ -380,14 +380,52 @@ def dashboard_view(request):
                 'given_name': payload.get('given_name'),
                 'family_name': payload.get('family_name'),
                 'email': payload.get('email'),
+                'roles': payload.get('realm_access', {}).get('roles', []),
             }
+
+            # Check if user has view_tasks permission
+            user_roles = user_info.get('roles', [])
+
+            # Also try to get roles from session if not in token
+            if not user_roles:
+                user_roles = request.session.get('user_info', {}).get('roles', [])
+
+            has_view_tasks_permission = (
+                'view_tasks' in user_roles or
+                'permission_view_tasks' in user_roles or
+                'manage_tasks' in user_roles or
+                'permission_manage_tasks' in user_roles or
+                'view_integrations' in user_roles or
+                'permission_view_integrations' in user_roles or
+                'manage_integrations' in user_roles or
+                'permission_manage_integrations' in user_roles or
+                'view_admin' in user_roles or
+                'permission_view_admin' in user_roles or
+                'manage_admin' in user_roles or
+                'permission_manage_admin' in user_roles or
+                'operator' in user_roles or
+                'permission_operator' in user_roles
+            )
+
+            if not has_view_tasks_permission:
+                messages.error(request, "You don't have permission to access the dashboard. Please contact an administrator to get the required permissions (view_tasks or any task/integration/admin permission).")
+                return redirect('login')
+
         except Exception as e:
             print(f"Error decoding token: {e}")
-            pass
+            # If we can't decode the token, we can't check permissions, so deny access
+            messages.error(request, "Unable to verify your permissions. Please try logging in again.")
+            return redirect('login')
+
+    # Get user roles for template
+    user_roles = user_info.get('roles', [])
+    if not user_roles:
+        user_roles = request.session.get('user_info', {}).get('roles', [])
 
     context = {
         'user': user,
         'user_info': user_info,
+        'user_roles': user_roles,
         'session_info': {
             'authenticated_at': request.session.get('authenticated_at'),
             'token_present': bool(token),

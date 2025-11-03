@@ -27,6 +27,11 @@
                     </div>
                 </div>
                 <div class="col-md-2 text-end">
+                    {% if 'view_admin' in user.roles or 'permission_view_admin' in user.roles or 'manage_admin' in user.roles or 'permission_manage_admin' in user.roles %}
+                    <a href="/admin/" class="btn btn-warning mb-2 d-block">
+                        <i class="fas fa-users"></i> User Management
+                    </a>
+                    {% endif %}
                     <form method="post" action="/auth/logout/" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to logout?')">
@@ -38,11 +43,6 @@
                         <button type="submit" class="btn btn-outline-danger btn-sm" title="Logout from all devices">
                             <i class="fas fa-shield-alt"></i> Full Logout
                         </button>
-                        {% if 'admin' in user.roles or 'keycloak-admin' in user.roles %}
-                        <a href="/keycloak-admin/" class="btn btn-warning ms-2">
-                            <i class="fas fa-cog"></i> Keycloak Admin
-                        </a>
-                        {% endif %}
                     </form>
                 </div>
             </div>
@@ -94,35 +94,47 @@
     <div class="col-md-6">
         <div class="card info-card h-100">
             <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Roles & Permissions</h5>
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Permissions & Access</h5>
             </div>
             <div class="card-body">
-                <h6 class="fw-bold text-muted mb-3">Assigned Roles:</h6>
-                {% if user.roles %}
-                    {% for role in user.roles %}
+                <h6 class="fw-bold text-muted mb-3">Your Current Permissions:</h6>
+                {% if user_roles %}
+                    {% for role in user_roles %}
                     <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                         <span>
-                            <i class="fas fa-user-tag text-primary"></i>
+                            {% if role == 'view_tasks' or role == 'permission_view_tasks' or role == 'manage_tasks' or role == 'permission_manage_tasks' %}
+                            <i class="fas fa-tasks text-primary"></i>
+                            {% elif role == 'view_integrations' or role == 'permission_view_integrations' or role == 'manage_integrations' or role == 'permission_manage_integrations' %}
+                            <i class="fas fa-plug text-info"></i>
+                            {% elif role == 'view_admin' or role == 'permission_view_admin' or role == 'manage_admin' or role == 'permission_manage_admin' %}
+                            <i class="fas fa-user-shield text-danger"></i>
+                            {% elif role == 'operator' or role == 'permission_operator' %}
+                            <i class="fas fa-cog text-warning"></i>
+                            {% else %}
+                            <i class="fas fa-user-tag text-secondary"></i>
+                            {% endif %}
                             <strong>{{ role|title }}</strong>
                         </span>
                         <div>
-                            {% if role == 'admin' %}
+                            {% if role == 'manage_tasks' or role == 'permission_manage_tasks' or role == 'manage_integrations' or role == 'permission_manage_integrations' or role == 'manage_admin' or role == 'permission_manage_admin' %}
                             <span class="badge bg-danger">Full Access</span>
-                            {% elif role == 'manager' %}
-                            <span class="badge bg-info">Management</span>
+                            {% elif role == 'view_tasks' or role == 'permission_view_tasks' or role == 'view_integrations' or role == 'permission_view_integrations' or role == 'view_admin' or role == 'permission_view_admin' %}
+                            <span class="badge bg-warning">View Only</span>
+                            {% elif role == 'operator' or role == 'permission_operator' %}
+                            <span class="badge bg-info">System Access</span>
                             {% else %}
-                            <span class="badge bg-secondary">User</span>
+                            <span class="badge bg-secondary">Other</span>
                             {% endif %}
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
-                <p class="text-muted">No specific roles assigned</p>
+                <p class="text-muted">No specific permissions assigned</p>
                 {% endif %}
 
                 <hr>
 
-                <h6 class="fw-bold text-muted mb-3">System Permissions:</h6>
+                <h6 class="fw-bold text-muted mb-3">System Access:</h6>
                 <div class="list-group list-group-flush">
                     <div class="list-group-item px-0">
                         <div class="d-flex justify-content-between align-items-center">
@@ -138,8 +150,8 @@
                     </div>
                     <div class="list-group-item px-0">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-user-shield"></i> Admin Access</span>
-                            {% if 'admin' in user.roles %}
+                            <span><i class="fas fa-tasks"></i> Tasks Access</span>
+                            {% if 'view_tasks' in user_roles or 'permission_view_tasks' in user_roles or 'manage_tasks' in user_roles or 'permission_manage_tasks' in user_roles %}
                             <span class="badge bg-success">Yes</span>
                             {% else %}
                             <span class="badge bg-danger">No</span>
@@ -148,8 +160,18 @@
                     </div>
                     <div class="list-group-item px-0">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-users-cog"></i> Manager Access</span>
-                            {% if 'admin' in user.roles or 'manager' in user.roles %}
+                            <span><i class="fas fa-plug"></i> Integrations Access</span>
+                            {% if 'view_integrations' in user_roles or 'permission_view_integrations' in user_roles or 'manage_integrations' in user_roles or 'permission_manage_integrations' in user_roles %}
+                            <span class="badge bg-success">Yes</span>
+                            {% else %}
+                            <span class="badge bg-danger">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-users"></i> Admin Access</span>
+                            {% if 'view_admin' in user_roles or 'permission_view_admin' in user_roles or 'manage_admin' in user_roles or 'permission_manage_admin' in user_roles %}
                             <span class="badge bg-success">Yes</span>
                             {% else %}
                             <span class="badge bg-danger">No</span>
@@ -223,14 +245,9 @@
                     <button class="btn btn-outline-primary" onclick="callAPI('/api/dashboard/', 'dashboard-result')">
                         <i class="fas fa-code"></i> View API Data (JSON)
                     </button>
-                    {% if 'admin' in user.roles %}
+                    {% if 'view_admin' in user_roles or 'permission_view_admin' in user_roles or 'manage_admin' in user_roles or 'permission_manage_admin' in user_roles %}
                     <button class="btn btn-outline-danger" onclick="callAPI('/api/admin/', 'admin-result')">
                         <i class="fas fa-user-shield"></i> Admin Panel API
-                    </button>
-                    {% endif %}
-                    {% if 'admin' in user.roles or 'manager' in user.roles %}
-                    <button class="btn btn-outline-info" onclick="callAPI('/api/manager/', 'manager-result')">
-                        <i class="fas fa-users-cog"></i> Manager Panel API
                     </button>
                     {% endif %}
                     <button class="btn btn-outline-success" onclick="callAPI('/api/auth/status/', 'auth-result')">

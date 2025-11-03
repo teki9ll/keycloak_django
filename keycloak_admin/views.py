@@ -75,22 +75,109 @@ class KeycloakAdminRequiredMixin:
         user_info = request.session.get('user_info', {})
         user_roles = user_info.get('roles', [])
 
-        # Check if user has admin role or specific permissions
-        has_admin_access = any(role in ['admin', 'keycloak-admin'] for role in user_roles)
+        # Check if user has admin permission roles
+        has_admin_access = any(role in ['view_admin', 'manage_admin'] for role in user_roles)
 
         if not has_admin_access:
-            messages.error(request, "You don't have permission to access Keycloak administration.")
+            messages.error(request, "You don't have permission to access the admin panel. Please contact an administrator to get the required permissions (view_admin or manage_admin).")
             return redirect('dashboard')
 
         return super().dispatch(request, *args, **kwargs)
 
 
+# Permission-based Decorators
+def get_client_ip(request):
+    """
+    Get the client's IP address from the request.
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+def require_view_admin_permission(view_func):
+    """
+    Decorator to ensure user has view_admin permission.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get('user_info'):
+            return redirect('login')
+
+        user_info = request.session.get('user_info', {})
+        user_roles = user_info.get('roles', [])
+
+        # Check if user has view_admin permission (only permission roles, not Keycloak admin roles)
+        has_view_permission = (
+            any(role == 'view_admin' for role in user_roles) or
+            any(role == 'permission_view_admin' for role in user_roles) or
+            any(role == 'manage_admin' for role in user_roles) or
+            any(role == 'permission_manage_admin' for role in user_roles)  # manage_admin implies view_admin
+        )
+
+        if not has_view_permission:
+            messages.error(request, "You don't have permission to access the admin panel. Please contact an administrator to get the required permissions (view_admin or manage_admin).")
+            return redirect('dashboard')
+
+        # Ensure session is tracked in cache for admin users
+        try:
+            from app.session_manager import SessionManager
+            session_key = request.session.session_key
+
+            # Only track if not already tracked
+            if not SessionManager._is_session_cached(session_key):
+                SessionManager.create_session(request, user_info)
+                logger.info(f"Tracked admin session for user: {user_info.get('username')}")
+        except Exception as e:
+            logger.error(f"Error tracking admin session: {e}")
+            # Continue even if tracking fails
+
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def require_manage_admin_permission(view_func):
+    """
+    Decorator to ensure user has manage_admin permission for CRUD operations.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get('user_info'):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': 'Authentication required'}, status=401)
+            return redirect('login')
+
+        user_info = request.session.get('user_info', {})
+        user_roles = user_info.get('roles', [])
+
+        # Check if user has manage_admin permission (only permission roles)
+        has_manage_permission = (
+            any(role == 'manage_admin' for role in user_roles) or
+            any(role == 'permission_manage_admin' for role in user_roles)
+        )
+
+        if not has_manage_permission:
+            error_message = "You don't have permission to perform administrative operations."
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': error_message}, status=403)
+            messages.error(request, error_message)
+            return redirect('keycloak_admin:dashboard')
+
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
 # Dashboard Views
-@track_admin_session
+@require_view_admin_permission
 @track_user_activity
 def keycloak_dashboard(request):
     """
-    Main Keycloak administration dashboard.
+    Main Keycloak administration dashboard with consolidated user management.
     """
     user_info = request.session.get('user_info', {})
 
@@ -106,26 +193,32 @@ def keycloak_dashboard(request):
             'total_permissions': len(all_permissions),
         }
 
-        # Get recent users with session status
-        recent_users = keycloak_admin.get_users(15)
-
-        # Get session information using the unified session manager
+        # Get all users with session status and permissions
         from app.session_manager import SessionManager
 
-        # Add session status to each user
-        users_with_session_status = []
-        for user in recent_users:
+        # Add session status and permissions to each user
+        users_with_status = []
+        for user in all_users:
             user_id = user.get('id', '')
             username = user.get('username', '')
 
             # Get user sessions from unified session manager
             user_sessions = SessionManager.get_user_sessions(user_id=user_id, username=username)
 
+            # Get user roles/permissions
+            user_roles = keycloak_admin.get_user_roles(user_id)
+            user_permissions = [
+                role['name'].replace('permission_', '')
+                for role in user_roles
+                if role['name'].startswith('permission_')
+            ]
+
             # Check if user is currently online (active in last 5 minutes)
             current_time = timezone.now().timestamp()
             is_online = False
             last_activity = None
             ip_address = None
+            session_count = len(user_sessions)
 
             if user_sessions:
                 # Sort by last_activity to get the most recent session
@@ -141,19 +234,31 @@ def keycloak_dashboard(request):
             user_with_status = {
                 **user,
                 'is_online': is_online,
-                'session_start': last_activity,
-                'last_activity': last_activity,
+                'last_session': last_activity,
                 'ip_address': ip_address,
+                'session_count': session_count,
+                'permissions': user_permissions,
             }
-            users_with_session_status.append(user_with_status)
+            users_with_status.append(user_with_status)
 
-        # Get online users count
-        online_users_count = sum(1 for user in users_with_session_status if user['is_online'])
+        # Get online users count (total sessions, not unique users)
+        online_users_count = sum(user['session_count'] for user in users_with_status if user['is_online'])
+
+        # Get current user's permissions (only permission roles)
+        current_user_roles = user_info.get('roles', [])
+        current_user_permissions = [
+            role for role in current_user_roles
+            if role in ['view_admin', 'manage_admin', 'permission_view_admin', 'permission_manage_admin']
+        ]
 
         context = {
             'stats': stats,
-            'recent_users': users_with_session_status,
+            'users': users_with_status,
             'online_users_count': online_users_count,
+            'available_permissions': all_permissions,
+            'current_user_permissions': current_user_permissions,
+            'can_manage_admin': any(role in ['manage_admin', 'permission_manage_admin'] for role in current_user_roles),
+            'has_view_admin': any(role in ['view_admin', 'manage_admin', 'permission_view_admin', 'permission_manage_admin'] for role in current_user_roles),
             'page_title': 'Easytask User Management',
         }
 
@@ -165,7 +270,7 @@ def keycloak_dashboard(request):
         return redirect('dashboard')
 
 
-@track_admin_session
+@require_manage_admin_permission
 @require_http_methods(["POST"])
 def logout_user(request, user_id):
     """
@@ -719,3 +824,315 @@ def role_permissions(request, role_name):
         logger.error(f"Error getting role permissions: {e}")
         messages.error(request, "Error loading role permissions.")
         return redirect('keycloak_admin:role_list')
+
+
+# API Endpoints for Ajax calls
+@require_view_admin_permission
+def api_user_detail(request, user_id):
+    """
+    API endpoint to get user details.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        user = keycloak_admin.get_user(user_id)
+        if not user:
+            return JsonResponse({'error': 'User not found'}, status=404)
+
+        # Get user permissions
+        user_roles = keycloak_admin.get_user_roles(user_id)
+        user_permissions = [
+            role['name'].replace('permission_', '')
+            for role in user_roles
+            if role['name'].startswith('permission_')
+        ]
+
+        # Get session info
+        from app.session_manager import SessionManager
+        user_sessions = SessionManager.get_user_sessions(user_id=user_id, username=user.get('username', ''))
+
+        user_data = {
+            'id': user.get('id'),
+            'username': user.get('username'),
+            'email': user.get('email'),
+            'first_name': user.get('firstName'),
+            'last_name': user.get('lastName'),
+            'enabled': user.get('enabled', True),
+            'created_timestamp': user.get('createdTimestamp'),
+            'permissions': user_permissions,
+            'session_count': len(user_sessions),
+        }
+
+        return JsonResponse({'success': True, 'user': user_data})
+
+    except Exception as e:
+        logger.error(f"Error getting user detail: {e}")
+        return JsonResponse({'error': 'Failed to get user details'}, status=500)
+
+
+@require_view_admin_permission
+def api_user_sessions(request, user_id):
+    """
+    API endpoint to get user sessions.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        # Get user info
+        user = keycloak_admin.get_user(user_id)
+        if not user:
+            return JsonResponse({'error': 'User not found'}, status=404)
+
+        # Get user sessions
+        from app.session_manager import SessionManager
+        user_sessions = SessionManager.get_user_sessions(user_id=user_id, username=user.get('username', ''))
+
+        sessions_data = []
+        for session in user_sessions:
+            sessions_data.append({
+                'id': session.get('session_id', session.get('id', '')),
+                'ip_address': session.get('ip_address', 'N/A'),
+                'start_time': session.get('created_at'),
+                'last_activity': session.get('last_accessed'),
+                'is_active': (timezone.now().timestamp() - session.get('last_accessed', 0)) < 300,
+                'user_agent': session.get('user_agent', 'N/A'),
+            })
+
+        return JsonResponse({'success': True, 'sessions': sessions_data})
+
+    except Exception as e:
+        logger.error(f"Error getting user sessions: {e}")
+        return JsonResponse({'error': 'Failed to get user sessions'}, status=500)
+
+
+@csrf_exempt
+@require_manage_admin_permission
+@require_http_methods(["POST"])
+def api_user_update(request, user_id):
+    """
+    API endpoint to update user.
+    """
+
+    try:
+        # Get current user info for permission check
+        current_user_info = request.session.get('user_info', {})
+
+        # Prevent self-modification of admin status
+        if user_id == current_user_info.get('sub'):
+            return JsonResponse({'error': 'Cannot modify your own account through this interface'}, status=400)
+
+        # Get form data
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        password = request.POST.get('password')
+        permissions = request.POST.getlist('permissions')
+
+        if not username:
+            return JsonResponse({'error': 'Username is required'}, status=400)
+
+        # Prepare user data
+        user_data = {
+            'username': username,
+            'email': email,
+            'firstName': first_name,
+            'lastName': last_name,
+            'enabled': True,
+        }
+
+        # Update user in Keycloak
+        success = keycloak_admin.update_user(user_id, user_data)
+        if not success:
+            return JsonResponse({'error': 'Failed to update user in Keycloak'}, status=500)
+
+        # Update password if provided
+        if password:
+            keycloak_admin.reset_password(user_id, password, temporary=False)
+
+        # Update permissions
+        # First, remove all existing permission roles
+        user_roles = keycloak_admin.get_user_roles(user_id)
+        for role in user_roles:
+            if role['name'].startswith('permission_'):
+                keycloak_admin.remove_role_from_user(user_id, role['name'])
+
+        # Add new permissions
+        for permission_name in permissions:
+            permission_role_id = keycloak_admin._get_role_id(f"permission_{permission_name}")
+            if permission_role_id:
+                keycloak_admin._assign_role_to_user(user_id, permission_role_id)
+
+        return JsonResponse({'success': True, 'message': 'User updated successfully'})
+
+    except Exception as e:
+        logger.error(f"Error updating user: {e}")
+        return JsonResponse({'error': 'Failed to update user'}, status=500)
+
+
+@csrf_exempt
+@require_manage_admin_permission
+@require_http_methods(["POST"])
+def api_user_activate(request, user_id):
+    """
+    API endpoint to activate a user.
+    """
+
+    try:
+        current_user_info = request.session.get('user_info', {})
+
+        # Prevent self-activation/deactivation
+        if user_id == current_user_info.get('sub'):
+            return JsonResponse({'error': 'Cannot modify your own account status'}, status=400)
+
+        # Enable user
+        user_data = {'enabled': True}
+        success = keycloak_admin.update_user(user_id, user_data)
+
+        if success:
+            return JsonResponse({'success': True, 'message': 'User activated successfully'})
+        else:
+            return JsonResponse({'error': 'Failed to activate user'}, status=500)
+
+    except Exception as e:
+        logger.error(f"Error activating user: {e}")
+        return JsonResponse({'error': 'Failed to activate user'}, status=500)
+
+
+@csrf_exempt
+@require_manage_admin_permission
+@require_http_methods(["POST"])
+def api_user_deactivate(request, user_id):
+    """
+    API endpoint to deactivate a user.
+    """
+
+    try:
+        current_user_info = request.session.get('user_info', {})
+
+        # Prevent self-deactivation
+        if user_id == current_user_info.get('sub'):
+            return JsonResponse({'error': 'Cannot deactivate your own account'}, status=400)
+
+        # Disable user
+        user_data = {'enabled': False}
+        success = keycloak_admin.update_user(user_id, user_data)
+
+        if success:
+            return JsonResponse({'success': True, 'message': 'User deactivated successfully'})
+        else:
+            return JsonResponse({'error': 'Failed to deactivate user'}, status=500)
+
+    except Exception as e:
+        logger.error(f"Error deactivating user: {e}")
+        return JsonResponse({'error': 'Failed to deactivate user'}, status=500)
+
+
+@csrf_exempt
+@require_manage_admin_permission
+@require_http_methods(["POST"])
+def api_user_delete(request, user_id):
+    """
+    API endpoint to delete a user.
+    """
+
+    try:
+        current_user_info = request.session.get('user_info', {})
+
+        # Prevent self-deletion
+        if user_id == current_user_info.get('sub'):
+            return JsonResponse({'error': 'Cannot delete your own account'}, status=400)
+
+        # Delete user from Keycloak
+        success = keycloak_admin.delete_user(user_id)
+
+        if success:
+            return JsonResponse({'success': True, 'message': 'User deleted successfully'})
+        else:
+            return JsonResponse({'error': 'Failed to delete user'}, status=500)
+
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}")
+        return JsonResponse({'error': 'Failed to delete user'}, status=500)
+
+
+@csrf_exempt
+@require_manage_admin_permission
+@require_http_methods(["POST"])
+def api_session_logout(request, session_id):
+    """
+    API endpoint to logout a specific session.
+    """
+
+    try:
+        from app.session_manager import SessionManager
+
+        # Check if trying to logout current admin session
+        current_session_key = request.session.session_key
+        if session_id == current_session_key:
+            return JsonResponse({'error': 'Cannot logout your own current session using this method. Use the logout button instead.'}, status=400)
+
+        # Invalidate session
+        success = SessionManager.invalidate_session(session_id)
+
+        if success:
+            return JsonResponse({'success': True, 'message': 'Session logged out successfully'})
+        else:
+            return JsonResponse({'error': 'Failed to logout session'}, status=500)
+
+    except Exception as e:
+        logger.error(f"Error logging out session: {e}")
+        return JsonResponse({'error': 'Failed to logout session'}, status=500)
+
+
+@require_manage_admin_permission
+@require_http_methods(["POST"])
+def api_user_create(request):
+    """
+    API endpoint to create a new user (from dashboard form).
+    """
+
+    try:
+        # Get form data
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        password = request.POST.get('password')
+        permissions = request.POST.getlist('permissions')
+
+        if not username or not password:
+            return JsonResponse({'error': 'Username and password are required'}, status=400)
+
+        # Prepare user data
+        user_data = {
+            'username': username,
+            'email': email,
+            'firstName': first_name,
+            'lastName': last_name,
+            'enabled': True,
+            'credentials': [{
+                'type': 'password',
+                'value': password,
+                'temporary': False
+            }]
+        }
+
+        # Create user in Keycloak
+        user_id = keycloak_admin.create_user(user_data)
+        if not user_id:
+            return JsonResponse({'error': 'Failed to create user in Keycloak'}, status=500)
+
+        # Assign permissions
+        for permission_name in permissions:
+            permission_role_id = keycloak_admin._get_role_id(f"permission_{permission_name}")
+            if permission_role_id:
+                keycloak_admin._assign_role_to_user(user_id, permission_role_id)
+
+        return JsonResponse({'success': True, 'message': 'User created successfully'})
+
+    except Exception as e:
+        logger.error(f"Error creating user: {e}")
+        return JsonResponse({'error': 'Failed to create user'}, status=500)

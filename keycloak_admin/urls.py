@@ -34,4 +34,14 @@ urlpatterns = [
 
     # User Session Management
     path('users/<str:user_id>/logout/', views.logout_user, name='logout_user'),
+
+    # API Endpoints for Ajax operations
+    path('api/users/create/', views.api_user_create, name='api_user_create'),
+    path('api/users/<str:user_id>/', views.api_user_detail, name='api_user_detail'),
+    path('api/users/<str:user_id>/sessions/', views.api_user_sessions, name='api_user_sessions'),
+    path('api/users/<str:user_id>/update/', views.api_user_update, name='api_user_update'),
+    path('api/users/<str:user_id>/activate/', views.api_user_activate, name='api_user_activate'),
+    path('api/users/<str:user_id>/deactivate/', views.api_user_deactivate, name='api_user_deactivate'),
+    path('api/users/<str:user_id>/delete/', views.api_user_delete, name='api_user_delete'),
+    path('api/sessions/<str:session_id>/logout/', views.api_session_logout, name='api_session_logout'),
 ]

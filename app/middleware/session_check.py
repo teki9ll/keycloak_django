@@ -28,6 +28,7 @@ class SessionValidationMiddleware:
             '/login/',
             '/auth/custom-login/',
             '/api/auth/status/',
+            '/admin/api/sessions/',  # Skip session logout API endpoints
             '/static/',
             '/media/',
         ]

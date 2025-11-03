@@ -94,92 +94,143 @@
     </div>
 </div>
 
-<!-- Permission Usage Guide -->
+<!-- Permission Details Guide -->
 <div class="row mt-4">
-    <div class="col-md-8">
+    <div class="col-12">
         <div class="card shadow">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-info">
-                    <i class="fas fa-info-circle"></i> Permission System Guide
+                    <i class="fas fa-shield-alt"></i> Permission System Details
                 </h6>
             </div>
             <div class="card-body">
                 <h6 class="text-primary">How Permissions Work</h6>
-                <p>Permissions in this system are predefined and grant specific capabilities to users. When assigned to roles, they control what users can access and do within the application.</p>
+                <p>Permissions in this system are predefined and grant specific capabilities to users. Each permission represents a specific action that a user can perform within the application. When users are created, they can be assigned permissions directly, and these permissions are included in their JWT tokens for authorization checks.</p>
 
-                <h6 class="text-success mt-3">Available Permissions</h6>
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6 class="text-success mb-3">Task Management</h6>
-                        <div class="mb-3">
-                            <span class="permission-badge badge-tasks">view_tasks</span>
-                            <p class="small text-muted mt-2">View tasks and task lists</p>
+                <h6 class="text-success mt-4">Available Permissions & What They Do</h6>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-success ps-3 mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="permission-badge badge-tasks me-2">view_tasks</span>
+                                <h6 class="mb-0">View Tasks</h6>
+                            </div>
+                            <p class="text-muted mb-2">Allows users to view tasks, task lists, and task details. Users can browse through existing tasks and see all task information.</p>
+                            <div class="bg-light p-2 rounded">
+                                <strong>Capabilities:</strong>
+                                <ul class="mb-0 small">
+                                    <li>Browse and read task information</li>
+                                    <li>View task details and descriptions</li>
+                                    <li>See task assignments and status</li>
+                                </ul>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <span class="permission-badge badge-tasks">manage_tasks</span>
-                            <p class="small text-muted mt-2">Create, update, delete tasks and manage assignments</p>
+
+                        <div class="border-start border-4 border-success ps-3 mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="permission-badge badge-tasks me-2">manage_tasks</span>
+                                <h6 class="mb-0">Manage Tasks</h6>
+                            </div>
+                            <p class="text-muted mb-2">Full control over task management. Users can create, edit, delete, and assign tasks to other users.</p>
+                            <div class="bg-light p-2 rounded">
+                                <strong>Capabilities:</strong>
+                                <ul class="mb-0 small">
+                                    <li>Create new tasks</li>
+                                    <li>Edit existing tasks</li>
+                                    <li>Delete tasks</li>
+                                    <li>Assign tasks to users</li>
+                                    <li>Update task status and priority</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <h6 class="text-info mb-3">System Integrations</h6>
-                        <div class="mb-3">
-                            <span class="permission-badge badge-integrations">view_integrations</span>
-                            <p class="small text-muted mt-2">View system integrations and their status</p>
+
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-info ps-3 mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="permission-badge badge-integrations me-2">view_integrations</span>
+                                <h6 class="mb-0">View Integrations</h6>
+                            </div>
+                            <p class="text-muted mb-2">Allows users to view system integrations, connection status, and integration settings.</p>
+                            <div class="bg-light p-2 rounded">
+                                <strong>Capabilities:</strong>
+                                <ul class="mb-0 small">
+                                    <li>View configured integrations</li>
+                                    <li>Check connection status</li>
+                                    <li>See integration logs and errors</li>
+                                </ul>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <span class="permission-badge badge-integrations">manage_integrations</span>
-                            <p class="small text-muted mt-2">Configure system integrations and external services</p>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <h6 class="text-warning mb-3">Administrative Access</h6>
-                        <div class="mb-3">
-                            <span class="permission-badge badge-admin">view_admin</span>
-                            <p class="small text-muted mt-2">View administrative functions and system settings</p>
-                        </div>
-                        <div class="mb-3">
-                            <span class="permission-badge badge-admin">manage_admin</span>
-                            <p class="small text-muted mt-2">Access and modify administrative functions and system settings</p>
+
+                        <div class="border-start border-4 border-info ps-3 mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="permission-badge badge-integrations me-2">manage_integrations</span>
+                                <h6 class="mb-0">Manage Integrations</h6>
+                            </div>
+                            <p class="text-muted mb-2">Full control over system integrations. Users can configure, test, and manage external system connections.</p>
+                            <div class="bg-light p-2 rounded">
+                                <strong>Capabilities:</strong>
+                                <ul class="mb-0 small">
+                                    <li>Configure new integrations</li>
+                                    <li>Edit integration settings</li>
+                                    <li>Test connections</li>
+                                    <li>Manage API keys and credentials</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="col-md-4">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-secondary">
-                    <i class="fas fa-lightbulb"></i> Quick Tips
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="list-group list-group-flush">
-                    <div class="list-group-item">
-                        <small>
-                            <i class="fas fa-check text-success"></i>
-                            <strong>Permissions in JWT:</strong> All assigned permissions appear in the user's JWT token
-                        </small>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-warning ps-3 mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="permission-badge badge-admin me-2">view_admin</span>
+                                <h6 class="mb-0">View Admin Functions</h6>
+                            </div>
+                            <p class="text-muted mb-2">Allows users to access administrative functions and view system settings and user management.</p>
+                            <div class="bg-light p-2 rounded">
+                                <strong>Capabilities:</strong>
+                                <ul class="mb-0 small">
+                                    <li>View user management dashboard</li>
+                                    <li>See system statistics</li>
+                                    <li>Access admin reports</li>
+                                    <li>View permission assignments</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <div class="list-group-item">
-                        <small>
-                            <i class="fas fa-check text-success"></i>
-                            <strong>Granular Control:</strong> Assign specific permissions to different roles
-                        </small>
+
+                    <div class="col-md-6">
+                        <div class="border-start border-4 border-warning ps-3 mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="permission-badge badge-admin me-2">manage_admin</span>
+                                <h6 class="mb-0">Manage Admin Functions</h6>
+                            </div>
+                            <p class="text-muted mb-2">Full administrative access. Users can manage other users, assign permissions, and control system settings.</p>
+                            <div class="bg-light p-2 rounded">
+                                <strong>Capabilities:</strong>
+                                <ul class="mb-0 small">
+                                    <li>Create and manage users</li>
+                                    <li>Assign permissions to users</li>
+                                    <li>Manage user sessions</li>
+                                    <li>Access system configuration</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <div class="list-group-item">
-                        <small>
-                            <i class="fas fa-check text-success"></i>
-                            <strong>Composable:</strong> Roles can have multiple permissions
-                        </small>
-                    </div>
-                    <div class="list-group-item">
-                        <small>
-                            <i class="fas fa-info text-info"></i>
-                            <strong>Best Practice:</strong> Create descriptive permission names
-                        </small>
-                    </div>
+                </div>
+
+                <div class="alert alert-info mt-4">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-info-circle"></i> Implementation Note
+                    </h6>
+                    <p class="mb-2">
+                        <strong>Permissions are implemented as Keycloak roles</strong> with the "permission_" prefix. This allows for easy integration with Keycloak's role-based access control system while providing a user-friendly permission interface.
+                    </p>
+                    <p class="mb-0">
+                        <strong>JWT Token Inclusion:</strong> All assigned permissions are automatically included in the user's JWT token under <code>realm_access.roles</code>, making authorization checks simple and efficient.
+                    </p>
                 </div>
             </div>
         </div>

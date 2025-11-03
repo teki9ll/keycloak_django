@@ -112,21 +112,36 @@ class SessionManager:
 
     @classmethod
     def invalidate_session(cls, session_key):
-        """Mark a single session as inactive"""
+        """Invalidate a single session by marking it as inactive and scheduling deletion"""
         if not session_key:
             return False
 
-        session_cache_key = f"{cls.SESSION_INFO_PREFIX}{session_key}"
-        session_info = cache.get(session_cache_key)
+        try:
+            # Mark session as inactive in cache first
+            session_cache_key = f"{cls.SESSION_INFO_PREFIX}{session_key}"
+            session_info = cache.get(session_cache_key)
+            if session_info:
+                session_info['is_active'] = False
+                session_info['logout_requested'] = True
+                session_info['invalidated_at'] = int(time.time())
+                cache.set(session_cache_key, session_info, cls.DEFAULT_SESSION_TIMEOUT)
 
-        if session_info:
-            session_info['is_active'] = False
-            session_info['logout_requested'] = True
-            cache.set(session_cache_key, session_info, cls.DEFAULT_SESSION_TIMEOUT)
-            logger.info(f"Invalidated session: {session_key[:8]}...")
+            # Remove from user's session list
+            if session_info:
+                user_id = session_info.get('user_id')
+                if user_id:
+                    user_sessions_key = f"{cls.USER_SESSIONS_PREFIX}{user_id}"
+                    user_sessions = cache.get(user_sessions_key, [])
+                    if session_key in user_sessions:
+                        user_sessions.remove(session_key)
+                        cache.set(user_sessions_key, user_sessions, cls.DEFAULT_SESSION_TIMEOUT)
+
+            logger.info(f"Successfully invalidated session: {session_key[:8]}...")
             return True
 
-        return False
+        except Exception as e:
+            logger.error(f"Error invalidating session {session_key[:8]}...: {e}")
+            return False
 
     @classmethod
     def invalidate_all_user_sessions(cls, user_id=None, username=None):
@@ -347,7 +362,9 @@ class SessionManager:
                 if session_info and session_info.get('is_active', True):
                     # Remove sensitive data for display
                     display_info = {
-                        'session_key': session_key[:16] + '...',
+                        'session_id': session_key,  # Full session key for logout operations
+                        'session_key': session_key[:16] + '...',  # Truncated for display
+                        'id': session_key,  # Alternative field for compatibility
                         'created_at': session_info['created_at'],
                         'last_accessed': session_info['last_accessed'],
                         'user_agent': session_info['user_agent'],
