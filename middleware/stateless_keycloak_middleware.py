@@ -120,6 +120,13 @@ class StatelessKeycloakMiddleware:
                 try:
                     demo_secret = 'demo-secret-key-for-stateless-auth'
                     original_payload = jwt.decode(access_token, demo_secret, algorithms=['HS256'], audience='easytask')
+
+                    # Check if this is an old token with too many roles (from before our cleanup)
+                    roles = original_payload.get('realm_access', {}).get('roles', [])
+                    if len(roles) > 5:  # Old tokens had 40+ roles, new tokens should have 0
+                        logger.warning(f"Detected old token with {len(roles)} roles, invalidating")
+                        return None  # Force logout by returning None
+
                     user_info = token_payload  # Use the processed user_info for basic fields
                     # But create user with original payload for roles
                     user = StatelessUser(original_payload, user_info)

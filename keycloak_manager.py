@@ -466,57 +466,18 @@ class KeycloakManager:
         import time
         import uuid
         import jwt
-        from django.core.signing import Signer
 
-        # Create demo user info with comprehensive Keycloak realm admin roles
+        # Create simple demo user info with no roles
         demo_user_info = {
             'sub': f'demo-{username}',
             'preferred_username': username,
             'email': f'{username}@demo.local',
-            'name': f'{username.title()} Demo (Realm Admin)',
+            'name': f'{username.title()} Demo',
             'given_name': 'Demo',
-            'family_name': 'Admin',
+            'family_name': 'User',
             'email_verified': True,
-            'roles': [
-                # Custom application roles
-                'role_super_admin', 'admin', 'user', 'manager', 'viewer', 'operator',
-
-                # Keycloak Realm Management Roles
-                'realm-admin', 'realm-management',
-
-                # User Management
-                'manage-users', 'view-users', 'query-users', 'query-groups',
-                'manage-authorization', 'view-authorization',
-
-                # Client Management
-                'manage-clients', 'view-clients', 'query-clients',
-
-                # Realm Management
-                'manage-realm', 'view-realm', 'manage-realm-migration',
-
-                # Identity Provider Management
-                'manage-identity-providers', 'view-identity-providers',
-
-                # Events Management
-                'view-events', 'manage-events', 'manage-realm-events',
-
-                # Session Management
-                'manage-sessions', 'view-sessions',
-
-                # Role Management
-                'manage-roles', 'view-roles',
-
-                # Group Management
-                'manage-groups', 'view-groups',
-
-                # Attack Detection
-                'manage-attack-detection', 'view-attack-detection',
-
-                # Admin Functions
-                'admin', 'create-client', 'read-token', 'logout-all'
-            ],
-            'is_demo': True,
-            'is_realm_admin': True
+            'roles': [],
+            'is_demo': True
         }
 
         # Generate mock JWT tokens
@@ -535,70 +496,8 @@ class KeycloakManager:
             'azp': self.client_id,
             'session_state': str(uuid.uuid4()),
             'acr': '1',
-            'allowed-origins': ['*'],
             'realm_access': {
-                'roles': [
-                    # Custom application roles
-                    'role_super_admin', 'admin', 'user', 'manager', 'viewer', 'operator',
-
-                    # Keycloak Realm Management Roles
-                    'realm-admin', 'realm-management',
-
-                    # User Management
-                    'manage-users', 'view-users', 'query-users', 'query-groups',
-                    'manage-authorization', 'view-authorization',
-
-                    # Client Management
-                    'manage-clients', 'view-clients', 'query-clients',
-
-                    # Realm Management
-                    'manage-realm', 'view-realm', 'manage-realm-migration',
-
-                    # Identity Provider Management
-                    'manage-identity-providers', 'view-identity-providers',
-
-                    # Events Management
-                    'view-events', 'manage-events', 'manage-realm-events',
-
-                    # Session Management
-                    'manage-sessions', 'view-sessions',
-
-                    # Role Management
-                    'manage-roles', 'view-roles',
-
-                    # Group Management
-                    'manage-groups', 'view-groups',
-
-                    # Attack Detection
-                    'manage-attack-detection', 'view-attack-detection',
-
-                    # Admin Functions
-                    'admin', 'create-client', 'read-token', 'logout-all'
-                ]
-            },
-            'resource_access': {
-                'account': {
-                    'roles': ['manage-account', 'view-profile', 'manage-account-links']
-                },
-                'realm-management': {
-                    'roles': [
-                        'realm-admin',
-                        'manage-users', 'view-users', 'query-users', 'query-groups',
-                        'manage-authorization', 'view-authorization',
-                        'manage-clients', 'view-clients', 'query-clients',
-                        'manage-realm', 'view-realm', 'manage-realm-migration',
-                        'manage-identity-providers', 'view-identity-providers',
-                        'view-events', 'manage-events', 'manage-realm-events',
-                        'manage-sessions', 'view-sessions',
-                        'manage-roles', 'view-roles',
-                        'manage-groups', 'view-groups',
-                        'manage-attack-detection', 'view-attack-detection',
-                        'create-client', 'read-token', 'logout-all'
-                    ]
-                },
-                self.client_id: {
-                    'roles': ['role_super_admin', 'admin']
-                }
+                'roles': []
             },
             'scope': 'openid email profile',
             'sid': str(uuid.uuid4()),

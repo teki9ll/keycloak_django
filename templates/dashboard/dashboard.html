@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Dashboard Test</title>
+    <title>Token Details - Dashboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,7 +11,7 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             background: white;
             padding: 20px;
@@ -24,6 +24,7 @@
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+            text-align: center;
         }
         .card {
             border: 1px solid #ddd;
@@ -31,6 +32,37 @@
             padding: 20px;
             margin-bottom: 20px;
             background: white;
+        }
+        .card h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .info-value {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .status-active {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-inactive {
+            color: #dc3545;
+            font-weight: bold;
         }
         .btn {
             background: #007bff;
@@ -40,252 +72,168 @@
             border-radius: 4px;
             cursor: pointer;
             margin: 5px;
+            text-decoration: none;
+            display: inline-block;
         }
         .btn:hover {
             background: #0056b3;
         }
-        .status {
-            padding: 10px;
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .jwt-section {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
             border-radius: 4px;
+            padding: 15px;
             margin: 10px 0;
         }
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+        .jwt-token {
+            font-family: monospace;
+            font-size: 12px;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎉 Simple Dashboard Test</h1>
-            <p>This is a test to verify the dashboard displays correctly</p>
+            <h1>🔐 Token Details Dashboard</h1>
+            <p>Authentication Token Information</p>
         </div>
 
+        <!-- User Information -->
         <div class="card">
-            <h2>👑 Authentication & Realm Admin Status</h2>
-            <div class="status success">
-                <strong>✅ Success!</strong> Authentication working with full Realm Administrator privileges
+            <h3>👤 User Information</h3>
+            <div class="info-grid">
+                <div class="info-label">Username:</div>
+                <div class="info-value">{{ user_info.username }}</div>
+
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{ user_info.email }}</div>
+
+                <div class="info-label">Full Name:</div>
+                <div class="info-value">{{ user_info.name }}</div>
+
+                <div class="info-label">User ID:</div>
+                <div class="info-value">{{ user_info.user_id }}</div>
+
+                <div class="info-label">Authenticated:</div>
+                <div class="info-value">
+                    <span class="{% if user_info.is_authenticated %}status-active{% else %}status-inactive{% endif %}">
+                        {% if user_info.is_authenticated %}✓ Yes{% else %}✗ No{% endif %}
+                    </span>
+                </div>
+
+                <div class="info-label">Roles:</div>
+                <div class="info-value">
+                    {% if user_info.roles %}
+                        {{ user_info.roles|join:", " }}
+                    {% else %}
+                        <em>No roles assigned</em>
+                    {% endif %}
+                </div>
             </div>
-            <p><strong>User:</strong> testuser (Demo Realm Administrator)</p>
-            <p><strong>Highest Role:</strong> Super Admin + Realm Admin</p>
-            <p><strong>Total Roles:</strong> <span id="roleCount">Loading...</span> roles assigned</p>
-            <p><strong>Realm Admin Status:</strong> <span class="status success">🔓 FULL REALM ADMIN ACCESS</span></p>
         </div>
 
+        <!-- Token Information -->
         <div class="card">
-            <h2>🛠️ System Information</h2>
-            <ul>
-                <li><strong>Authentication Method:</strong> Stateless JWT Tokens</li>
-                <li><strong>Token Storage:</strong> HTTP Cookies (No Database)</li>
-                <li><strong>Architecture:</strong> Purely Stateless</li>
-                <li><strong>Status:</strong> Fully Functional</li>
-            </ul>
-        </div>
+            <h3>🎟️ Token Information</h3>
+            <div class="info-grid">
+                <div class="info-label">Token ID (JTI):</div>
+                <div class="info-value">{{ token_info.jti|default:"N/A" }}</div>
 
-        <div class="card">
-            <h2>🧪 API Testing</h2>
-            <p>Test the API endpoints:</p>
-            <button class="btn" onclick="testWhoami()">Test /api/whoami/</button>
-            <button class="btn" onclick="testCheckAuth()">Test /api/check-auth/</button>
-            <div id="apiResult" style="margin-top: 10px;"></div>
-        </div>
+                <div class="info-label">Issued At (IAT):</div>
+                <div class="info-value">
+                    {% if token_info.iat %}
+                        {{ token_info.iat|date:"Y-m-d H:i:s" }} ({{ token_info.iat }})
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
 
-        <div class="card">
-            <h2>🔐 Keycloak Realm Administrator Permissions</h2>
-            <div class="status success">
-                <strong>🎯 ALL REALM ADMIN PERMISSIONS GRANTED</strong><br>
-                This user can perform all realm administration tasks
+                <div class="info-label">Expires At (EXP):</div>
+                <div class="info-value">
+                    {% if token_info.exp %}
+                        {{ token_info.exp|date:"Y-m-d H:i:s" }} ({{ token_info.exp }})
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+
+                <div class="info-label">Token Status:</div>
+                <div class="info-value">
+                    {% if token_info.is_expired %}
+                        <span class="status-inactive">⚠️ Expired</span>
+                    {% else %}
+                        <span class="status-active">✓ Valid</span>
+                    {% endif %}
+                </div>
             </div>
-
-            <h4>👥 User Management</h4>
-            <ul>
-                <li>✅ <strong>Create, Update, Delete Users</strong> (manage-users)</li>
-                <li>✅ <strong>View User Profiles</strong> (view-users)</li>
-                <li>✅ <strong>Search & Query Users</strong> (query-users)</li>
-                <li>✅ <strong>Reset User Passwords</strong> (manage-users)</li>
-                <li>✅ <strong>Manage User Permissions</strong> (manage-authorization)</li>
-                <li>✅ <strong>Enable/Disable User Accounts</strong> (manage-users)</li>
-            </ul>
-
-            <h4>🏢 Role & Group Management</h4>
-            <ul>
-                <li>✅ <strong>Create & Manage Roles</strong> (manage-roles)</li>
-                <li>✅ <strong>Assign Roles to Users</strong> (manage-roles)</li>
-                <li>✅ <strong>Create & Manage Groups</strong> (manage-groups)</li>
-                <li>✅ <strong>Group Membership Management</strong> (manage-groups)</li>
-            </ul>
-
-            <h4>🔧 Client & Application Management</h4>
-            <ul>
-                <li>✅ <strong>Create OAuth Clients</strong> (create-client)</li>
-                <li>✅ <strong>Manage Client Settings</strong> (manage-clients)</li>
-                <li>✅ <strong>View Client Configuration</strong> (view-clients)</li>
-                <li>✅ <strong>Manage Client Scopes</strong> (manage-clients)</li>
-            </ul>
-
-            <h4>🌐 Realm Management</h4>
-            <ul>
-                <li>✅ <strong>Manage Realm Settings</strong> (manage-realm)</li>
-                <li>✅ <strong>Configure Identity Providers</strong> (manage-identity-providers)</li>
-                <li>✅ <strong>Realm Security Settings</strong> (manage-realm)</li>
-                <li>✅ <strong>Theme & Branding</strong> (manage-realm)</li>
-            </ul>
-
-            <h4>📊 Session & Event Management</h4>
-            <ul>
-                <li>✅ <strong>View Active Sessions</strong> (view-sessions)</li>
-                <li>✅ <strong>Terminate User Sessions</strong> (manage-sessions)</li>
-                <li>✅ <strong>Logout All Users</strong> (logout-all)</li>
-                <li>✅ <strong>View Admin Events</strong> (view-events)</li>
-                <li>✅ <strong>Manage Event Logging</strong> (manage-events)</li>
-            </ul>
-
-            <h4>🛡️ Security & Attack Detection</h4>
-            <ul>
-                <li>✅ <strong>View Attack Detection</strong> (view-attack-detection)</li>
-                <li>✅ <strong>Manage Brute Force Protection</strong> (manage-attack-detection)</li>
-                <li>✅ <strong>Read User Tokens</strong> (read-token)</li>
-                <li>✅ <strong>Manage Security Policies</strong> (manage-realm)</li>
-            </ul>
         </div>
 
+        <!-- Raw Token Details -->
         <div class="card">
-            <h2>📋 Features Working</h2>
-            <ul>
-                <li>✅ Demo user authentication (testuser/Admin@123)</li>
-                <li>✅ JWT token generation and validation</li>
-                <li>✅ Role-based permissions</li>
-                <li>✅ Stateless middleware</li>
-                <li>✅ Cookie-based token storage</li>
-                <li>✅ API endpoint protection</li>
-                <li>✅ No database dependency</li>
-                <li>🆕 <strong>Full Keycloak Realm Admin Capabilities</strong></li>
-            </ul>
+            <h3>🔍 Raw Token Details</h3>
+            <div class="info-grid">
+                <div class="info-label">Access Token Present:</div>
+                <div class="info-value">
+                    {% if raw_tokens.has_access_token %}
+                        <span class="status-active">✓ Yes</span>
+                    {% else %}
+                        <span class="status-inactive">✗ No</span>
+                    {% endif %}
+                </div>
+
+                <div class="info-label">Access Token Length:</div>
+                <div class="info-value">{{ raw_tokens.access_token_length }} characters</div>
+
+                <div class="info-label">Refresh Token Present:</div>
+                <div class="info-value">
+                    {% if raw_tokens.has_refresh_token %}
+                        <span class="status-active">✓ Yes</span>
+                    {% else %}
+                        <span class="status-inactive">✗ No</span>
+                    {% endif %}
+                </div>
+
+                <div class="info-label">Refresh Token Length:</div>
+                <div class="info-value">{{ raw_tokens.refresh_token_length }} characters</div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card">
+            <h3>⚡ Actions</h3>
+            <a href="/api/whoami/" class="btn" target="_blank">🔍 Test API (Whoami)</a>
+            <a href="/api/check-auth/" class="btn" target="_blank">✅ Check Auth Status</a>
+            <a href="/logout/" class="btn btn-danger">🚪 Logout</a>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="card">
+            <h3>🐛 Debug Information</h3>
+            <div class="jwt-section">
+                <strong>Complete User Object:</strong>
+                <pre>{{ user_info }}</pre>
+            </div>
         </div>
     </div>
 
     <script>
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-
-        async function testWhoami() {
-            const resultDiv = document.getElementById('apiResult');
-            resultDiv.innerHTML = '<div class="status info">Testing /api/whoami/...</div>';
-
-            try {
-                const response = await fetch('/api/whoami/');
-                const data = await response.json();
-
-                if (response.ok) {
-                    resultDiv.innerHTML = `
-                        <div class="status success">
-                            <strong>✅ /api/whoami/ Success</strong><br>
-                            <strong>User:</strong> ${data.user.username}<br>
-                            <strong>Roles:</strong> ${data.user.roles.join(', ')}<br>
-                            <strong>Authenticated:</strong> ${data.user.is_authenticated}
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="status info">
-                            <strong>⚠️ /api/whoami/ Response</strong><br>
-                            ${data.message || 'Unknown error'}
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `
-                    <div class="status info">
-                        <strong>❌ Error</strong><br>
-                        ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        async function testCheckAuth() {
-            const resultDiv = document.getElementById('apiResult');
-            resultDiv.innerHTML = '<div class="status info">Testing /api/check-auth/...</div>';
-
-            try {
-                const response = await fetch('/api/check-auth/');
-                const data = await response.json();
-
-                if (response.ok) {
-                    // Update role count
-                    const roleCountSpan = document.getElementById('roleCount');
-                    if (roleCountSpan && data.user.roles) {
-                        roleCountSpan.textContent = data.user.roles.length;
-                    }
-
-                    resultDiv.innerHTML = `
-                        <div class="status success">
-                            <strong>✅ /api/check-auth/ Success</strong><br>
-                            <strong>Authenticated:</strong> ${data.authenticated}<br>
-                            <strong>Username:</strong> ${data.user.username}<br>
-                            <strong>Highest Role:</strong> ${data.user.highest_role}<br>
-                            <strong>Total Roles:</strong> ${data.user.roles ? data.user.roles.length : 0}<br>
-                            <strong>Realm Admin:</strong> ${data.user.permissions ? (data.user.permissions.is_realm_admin ? '✅ Yes' : '❌ No') : 'Unknown'}<br>
-                            <strong>Can Manage Users:</strong> ${data.user.permissions ? (data.user.permissions.can_manage_keycloak_users ? '✅ Yes' : '❌ No') : 'Unknown'}<br>
-                            <strong>Can Manage Realm:</strong> ${data.user.permissions ? (data.user.permissions.can_manage_realm ? '✅ Yes' : '❌ No') : 'Unknown'}
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="status info">
-                            <strong>⚠️ /api/check-auth/ Response</strong><br>
-                            ${data.message || 'Unknown error'}
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `
-                    <div class="status info">
-                        <strong>❌ Error</strong><br>
-                        ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        // Load user info on page load
-        async function loadUserInfo() {
-            try {
-                const response = await fetch('/api/check-auth/');
-                const data = await response.json();
-
-                if (response.ok && data.authenticated) {
-                    const roleCountSpan = document.getElementById('roleCount');
-                    if (roleCountSpan && data.user.roles) {
-                        roleCountSpan.textContent = data.user.roles.length;
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to load user info:', error);
-            }
-        }
-
-        // Load user info when page loads
-        window.addEventListener('load', loadUserInfo);
+        // Auto-refresh token status every 30 seconds
+        setTimeout(function() {
+            location.reload();
+        }, 30000);
     </script>
 </body>
 </html>

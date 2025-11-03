@@ -95,26 +95,44 @@ def logout_view(request):
     # Clear standard Keycloak tokens
     clear_tokens_from_cookies(response)
 
+    # Also clear any potential signed tokens
+    response.delete_cookie('access_token')
+    response.delete_cookie('refresh_token')
+
+    # Set cookies to expire immediately for all possible token names
+    for cookie_name in ['access_token', 'refresh_token', 'demo_access_token', 'demo_refresh_token']:
+        response.set_cookie(cookie_name, '', expires=0, max_age=0, httponly=True, samesite='Lax')
+
     return response
 
 
 def dashboard_view(request):
-    """Simple dashboard view"""
+    """Simple dashboard view showing token details"""
     logger.debug(f"Dashboard view: user exists={hasattr(request, 'user')}, authenticated={getattr(request.user, 'is_authenticated', False) if hasattr(request, 'user') else False}")
 
     if not hasattr(request, 'user') or not request.user.is_authenticated:
         logger.debug("Dashboard view: user not authenticated, redirecting to login")
         return redirect('login')
 
-    # Get user roles and permissions
+    # Get user information and token details
     user = request.user
-    roles = user.get_roles()
-    highest_role = user.get_highest_role()
+    token_info = user.get_token_info()
 
-    logger.debug(f"Dashboard view: username={user.username}, roles={roles}, highest_role={highest_role}")
+    # Get tokens from cookies for display
+    from middleware.stateless_keycloak_middleware import get_tokens_from_cookies
+    tokens = get_tokens_from_cookies(request) or {}
+
+    logger.debug(f"Dashboard view: username={user.username}, token_info={token_info}")
 
     context = {
         'user_info': user.to_dict(),
+        'token_info': token_info,
+        'raw_tokens': {
+            'has_access_token': bool(tokens.get('access_token')),
+            'has_refresh_token': bool(tokens.get('refresh_token')),
+            'access_token_length': len(tokens.get('access_token', '')),
+            'refresh_token_length': len(tokens.get('refresh_token', '')),
+        },
         'navigation': [
             {
                 'name': 'Dashboard',
@@ -123,77 +141,10 @@ def dashboard_view(request):
                 'active': True,
                 'visible': True
             }
-        ],
-        'dashboard_data': {
-            'user': {
-                'name': user.name or user.username,
-                'role': highest_role or 'Unknown',
-                'last_login': '2024-01-15 10:30:00',
-            },
-            'system': {
-                'status': 'Healthy',
-                'uptime': '15 days, 7 hours',
-                'version': '1.0.0'
-            }
-        },
-        'available_actions': []
+        ]
     }
 
-    # Add role-specific navigation and actions
-    if user.has_role('role_super_admin') or user.has_role('admin'):
-        context['navigation'].extend([
-            {
-                'name': 'Manage Users',
-                'url': '/dashboard/users/',
-                'icon': 'users',
-                'active': False,
-                'visible': True
-            },
-            {
-                'name': 'Integrations',
-                'url': '/dashboard/integrations/',
-                'icon': 'integrations',
-                'active': False,
-                'visible': True
-            }
-        ])
-
-        if user.has_role('role_super_admin'):
-            context['available_actions'].extend([
-                {'name': 'Add User', 'url': '#', 'icon': 'person_add'},
-                {'name': 'Manage Roles', 'url': '#', 'icon': 'admin_panel_settings'},
-            ])
-
-    if user.has_role('role_super_admin') or user.has_role('admin') or user.has_role('user'):
-        context['navigation'].append({
-            'name': 'Tasks',
-            'url': '/dashboard/tasks/',
-            'icon': 'tasks',
-            'active': False,
-            'visible': True
-        })
-
-        context['available_actions'].append({
-            'name': 'Create Task', 'url': '#', 'icon': 'add'
-        })
-
-    if user.has_role('role_super_admin') or user.has_role('admin') or user.has_role('operator'):
-        context['navigation'].append({
-            'name': 'Adhoc Tasks',
-            'url': '/dashboard/adhoc/',
-            'icon': 'adhoc',
-            'active': False,
-            'visible': True
-        })
-
-        context['available_actions'].append({
-            'name': 'Execute Adhoc Task', 'url': '#', 'icon': 'play'
-        })
-
-    logger.debug(f"Dashboard view: rendering with context keys: {list(context.keys())}")
-    logger.debug(f"Dashboard view: user_info keys: {list(context['user_info'].keys()) if 'user_info' in context else 'None'}")
-    logger.debug(f"Dashboard view: navigation items: {len(context.get('navigation', []))}")
-    logger.debug(f"Dashboard view: available actions: {len(context.get('available_actions', []))}")
+    logger.debug(f"Dashboard view: rendering with token details")
 
     # Render the dashboard
     response = render(request, 'dashboard/dashboard.html', context)
