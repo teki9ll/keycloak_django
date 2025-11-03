@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Dashboard Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: white;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Simple Dashboard Test</h1>
+            <p>This is a test to verify the dashboard displays correctly</p>
+        </div>
+
+        <div class="card">
+            <h2>👑 Authentication & Realm Admin Status</h2>
+            <div class="status success">
+                <strong>✅ Success!</strong> Authentication working with full Realm Administrator privileges
+            </div>
+            <p><strong>User:</strong> testuser (Demo Realm Administrator)</p>
+            <p><strong>Highest Role:</strong> Super Admin + Realm Admin</p>
+            <p><strong>Total Roles:</strong> <span id="roleCount">Loading...</span> roles assigned</p>
+            <p><strong>Realm Admin Status:</strong> <span class="status success">🔓 FULL REALM ADMIN ACCESS</span></p>
+        </div>
+
+        <div class="card">
+            <h2>🛠️ System Information</h2>
+            <ul>
+                <li><strong>Authentication Method:</strong> Stateless JWT Tokens</li>
+                <li><strong>Token Storage:</strong> HTTP Cookies (No Database)</li>
+                <li><strong>Architecture:</strong> Purely Stateless</li>
+                <li><strong>Status:</strong> Fully Functional</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>🧪 API Testing</h2>
+            <p>Test the API endpoints:</p>
+            <button class="btn" onclick="testWhoami()">Test /api/whoami/</button>
+            <button class="btn" onclick="testCheckAuth()">Test /api/check-auth/</button>
+            <div id="apiResult" style="margin-top: 10px;"></div>
+        </div>
+
+        <div class="card">
+            <h2>🔐 Keycloak Realm Administrator Permissions</h2>
+            <div class="status success">
+                <strong>🎯 ALL REALM ADMIN PERMISSIONS GRANTED</strong><br>
+                This user can perform all realm administration tasks
+            </div>
+
+            <h4>👥 User Management</h4>
+            <ul>
+                <li>✅ <strong>Create, Update, Delete Users</strong> (manage-users)</li>
+                <li>✅ <strong>View User Profiles</strong> (view-users)</li>
+                <li>✅ <strong>Search & Query Users</strong> (query-users)</li>
+                <li>✅ <strong>Reset User Passwords</strong> (manage-users)</li>
+                <li>✅ <strong>Manage User Permissions</strong> (manage-authorization)</li>
+                <li>✅ <strong>Enable/Disable User Accounts</strong> (manage-users)</li>
+            </ul>
+
+            <h4>🏢 Role & Group Management</h4>
+            <ul>
+                <li>✅ <strong>Create & Manage Roles</strong> (manage-roles)</li>
+                <li>✅ <strong>Assign Roles to Users</strong> (manage-roles)</li>
+                <li>✅ <strong>Create & Manage Groups</strong> (manage-groups)</li>
+                <li>✅ <strong>Group Membership Management</strong> (manage-groups)</li>
+            </ul>
+
+            <h4>🔧 Client & Application Management</h4>
+            <ul>
+                <li>✅ <strong>Create OAuth Clients</strong> (create-client)</li>
+                <li>✅ <strong>Manage Client Settings</strong> (manage-clients)</li>
+                <li>✅ <strong>View Client Configuration</strong> (view-clients)</li>
+                <li>✅ <strong>Manage Client Scopes</strong> (manage-clients)</li>
+            </ul>
+
+            <h4>🌐 Realm Management</h4>
+            <ul>
+                <li>✅ <strong>Manage Realm Settings</strong> (manage-realm)</li>
+                <li>✅ <strong>Configure Identity Providers</strong> (manage-identity-providers)</li>
+                <li>✅ <strong>Realm Security Settings</strong> (manage-realm)</li>
+                <li>✅ <strong>Theme & Branding</strong> (manage-realm)</li>
+            </ul>
+
+            <h4>📊 Session & Event Management</h4>
+            <ul>
+                <li>✅ <strong>View Active Sessions</strong> (view-sessions)</li>
+                <li>✅ <strong>Terminate User Sessions</strong> (manage-sessions)</li>
+                <li>✅ <strong>Logout All Users</strong> (logout-all)</li>
+                <li>✅ <strong>View Admin Events</strong> (view-events)</li>
+                <li>✅ <strong>Manage Event Logging</strong> (manage-events)</li>
+            </ul>
+
+            <h4>🛡️ Security & Attack Detection</h4>
+            <ul>
+                <li>✅ <strong>View Attack Detection</strong> (view-attack-detection)</li>
+                <li>✅ <strong>Manage Brute Force Protection</strong> (manage-attack-detection)</li>
+                <li>✅ <strong>Read User Tokens</strong> (read-token)</li>
+                <li>✅ <strong>Manage Security Policies</strong> (manage-realm)</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>📋 Features Working</h2>
+            <ul>
+                <li>✅ Demo user authentication (testuser/Admin@123)</li>
+                <li>✅ JWT token generation and validation</li>
+                <li>✅ Role-based permissions</li>
+                <li>✅ Stateless middleware</li>
+                <li>✅ Cookie-based token storage</li>
+                <li>✅ API endpoint protection</li>
+                <li>✅ No database dependency</li>
+                <li>🆕 <strong>Full Keycloak Realm Admin Capabilities</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        async function testWhoami() {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.innerHTML = '<div class="status info">Testing /api/whoami/...</div>';
+
+            try {
+                const response = await fetch('/api/whoami/');
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="status success">
+                            <strong>✅ /api/whoami/ Success</strong><br>
+                            <strong>User:</strong> ${data.user.username}<br>
+                            <strong>Roles:</strong> ${data.user.roles.join(', ')}<br>
+                            <strong>Authenticated:</strong> ${data.user.is_authenticated}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="status info">
+                            <strong>⚠️ /api/whoami/ Response</strong><br>
+                            ${data.message || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status info">
+                        <strong>❌ Error</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function testCheckAuth() {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.innerHTML = '<div class="status info">Testing /api/check-auth/...</div>';
+
+            try {
+                const response = await fetch('/api/check-auth/');
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Update role count
+                    const roleCountSpan = document.getElementById('roleCount');
+                    if (roleCountSpan && data.user.roles) {
+                        roleCountSpan.textContent = data.user.roles.length;
+                    }
+
+                    resultDiv.innerHTML = `
+                        <div class="status success">
+                            <strong>✅ /api/check-auth/ Success</strong><br>
+                            <strong>Authenticated:</strong> ${data.authenticated}<br>
+                            <strong>Username:</strong> ${data.user.username}<br>
+                            <strong>Highest Role:</strong> ${data.user.highest_role}<br>
+                            <strong>Total Roles:</strong> ${data.user.roles ? data.user.roles.length : 0}<br>
+                            <strong>Realm Admin:</strong> ${data.user.permissions ? (data.user.permissions.is_realm_admin ? '✅ Yes' : '❌ No') : 'Unknown'}<br>
+                            <strong>Can Manage Users:</strong> ${data.user.permissions ? (data.user.permissions.can_manage_keycloak_users ? '✅ Yes' : '❌ No') : 'Unknown'}<br>
+                            <strong>Can Manage Realm:</strong> ${data.user.permissions ? (data.user.permissions.can_manage_realm ? '✅ Yes' : '❌ No') : 'Unknown'}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="status info">
+                            <strong>⚠️ /api/check-auth/ Response</strong><br>
+                            ${data.message || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="status info">
+                        <strong>❌ Error</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Load user info on page load
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/check-auth/');
+                const data = await response.json();
+
+                if (response.ok && data.authenticated) {
+                    const roleCountSpan = document.getElementById('roleCount');
+                    if (roleCountSpan && data.user.roles) {
+                        roleCountSpan.textContent = data.user.roles.length;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load user info:', error);
+            }
+        }
+
+        // Load user info when page loads
+        window.addEventListener('load', loadUserInfo);
+    </script>
+</body>
+</html>
